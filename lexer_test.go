@@ -9,7 +9,7 @@ import (
 )
 
 type jsonLexerOutputToken struct {
-	token     Token
+	token     interface{}
 	tokenType TokenType
 }
 

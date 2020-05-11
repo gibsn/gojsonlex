@@ -3,10 +3,8 @@ package gojsonlex
 import (
 	"fmt"
 	"io"
-	"reflect"
 	"strconv"
 	"unicode"
-	"unsafe"
 )
 
 const (
@@ -22,16 +20,6 @@ const (
 	stateLexerNumber
 	stateLexerBool
 	stateLexerNull
-)
-
-type TokenType byte
-
-const (
-	lexerTokenTypeDelim TokenType = iota
-	lexerTokenTypeString
-	lexerTokenTypeNumber
-	lexerTokenTypeBool
-	lexerTokenTypeNull
 )
 
 // JSONLexer is a JSON lexical analyzer with streaming API support, where stream is a sequence of
@@ -59,9 +47,6 @@ type JSONLexer struct {
 	newTokenFound  bool // true if during the last feed() a new token was finished being parsed
 
 	skipDelims bool
-}
-
-type Token interface {
 }
 
 // NewJSONLexer creates a new JSONLexer with the given reader.
@@ -153,20 +138,6 @@ func (l *JSONLexer) feed(c byte) {
 	}
 }
 
-func unsafeStringFromBytes(arr []byte) string {
-	slice := (*reflect.SliceHeader)(unsafe.Pointer(&arr))
-	str := (*reflect.StringHeader)(unsafe.Pointer(slice))
-	str.Data = slice.Data
-	str.Len = slice.Len
-
-	return *(*string)(unsafe.Pointer(str))
-}
-
-func (l *JSONLexer) currTokenAsUnsafeString() (string, error) {
-	// skipping "
-	return unsafeStringFromBytes(l.buf[l.currTokenStart+1 : l.currTokenEnd]), nil
-}
-
 func (l *JSONLexer) currTokenAsNumber() (float64, error) {
 	str := unsafeStringFromBytes(l.buf[l.currTokenStart:l.currTokenEnd])
 
@@ -178,7 +149,7 @@ func (l *JSONLexer) currTokenAsNumber() (float64, error) {
 	return n, nil
 }
 
-func (l *JSONLexer) currTokenAsBool() (Token, error) {
+func (l *JSONLexer) currTokenAsBool() (bool, error) {
 	if unicode.ToLower(rune(l.buf[l.currTokenStart])) == 't' {
 		return true, nil
 	}
@@ -190,7 +161,7 @@ func (l *JSONLexer) currTokenAsBool() (Token, error) {
 	return false, fmt.Errorf("could not convert '%s' to bool", tokenAsStr)
 }
 
-func (l *JSONLexer) returnNewToken() (Token, error) {
+func (l *JSONLexer) returnNewToken() (interface{}, error) {
 	switch l.currTokenType {
 	case lexerTokenTypeDelim:
 		return l.buf[l.currTokenStart], nil
@@ -244,7 +215,7 @@ func (l *JSONLexer) shutdown() (interface{}, error) {
 
 // Token returns the next JSON token. All strings returned by Token are guaranteed to be valid
 // until the next Token call, otherwise you MUST make a deep copy.
-func (l *JSONLexer) Token() (Token, error) {
+func (l *JSONLexer) Token() (interface{}, error) {
 	if l.state == stateLexerIdle {
 		if err := l.fetchNewData(); err != nil {
 			return nil, err
@@ -276,24 +247,4 @@ func (l *JSONLexer) Token() (Token, error) {
 	}
 
 	return l.returnNewToken()
-}
-
-// IsDelim reports whether the given rune is a JSON delimiter
-func IsDelim(c rune) bool {
-	switch c {
-	case '{':
-		fallthrough
-	case '}':
-		fallthrough
-	case '[':
-		fallthrough
-	case ']':
-		fallthrough
-	case ':':
-		fallthrough
-	case ',':
-		return true
-	}
-
-	return false
 }
