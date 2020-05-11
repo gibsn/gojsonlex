@@ -22,3 +22,5 @@ func TestStringDeepCopy(t *testing.T) {
 		}
 	}
 }
+
+// TODO tests for IsDelim

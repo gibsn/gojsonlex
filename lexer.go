@@ -1,6 +1,7 @@
 package gojsonlex
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -166,7 +167,7 @@ func (l *JSONLexer) currTokenAsBool() (bool, error) {
 	return false, fmt.Errorf("could not convert '%s' to bool", tokenAsStr)
 }
 
-func (l *JSONLexer) returnNewToken() (interface{}, error) {
+func (l *JSONLexer) returnNewToken() (json.Token, error) {
 	switch l.currTokenType {
 	case lexerTokenTypeDelim:
 		return l.buf[l.currTokenStart], nil
@@ -210,7 +211,7 @@ func (l *JSONLexer) fetchNewData() error {
 	return nil
 }
 
-func (l *JSONLexer) shutdown() (interface{}, error) {
+func (l *JSONLexer) shutdown() (json.Token, error) {
 	if l.state != stateLexerSkipping {
 		return nil, fmt.Errorf("unexpected EOF")
 	}
@@ -220,7 +221,7 @@ func (l *JSONLexer) shutdown() (interface{}, error) {
 
 // Token returns the next JSON token. All strings returned by Token are guaranteed to be valid
 // until the next Token call, otherwise you MUST make a deep copy.
-func (l *JSONLexer) Token() (interface{}, error) {
+func (l *JSONLexer) Token() (json.Token, error) {
 	if l.state == stateLexerIdle {
 		if err := l.fetchNewData(); err != nil {
 			return nil, err
