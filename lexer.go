@@ -216,7 +216,7 @@ func (l *JSONLexer) shutdown() (json.Token, error) {
 		return nil, fmt.Errorf("unexpected EOF")
 	}
 
-	return nil, nil
+	return nil, io.EOF
 }
 
 // Token returns the next JSON token. All strings returned by Token are guaranteed to be valid

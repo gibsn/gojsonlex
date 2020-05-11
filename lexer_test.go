@@ -86,10 +86,11 @@ func TestJSONLexer(t *testing.T) {
 		for {
 			token, err := l.Token()
 			if err != nil {
+				if err == io.EOF {
+					break
+				}
+
 				t.Errorf("testcase '%s': %v", testcase.input, err)
-				break
-			}
-			if token == nil {
 				break
 			}
 
