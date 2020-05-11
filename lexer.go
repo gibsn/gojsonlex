@@ -138,6 +138,11 @@ func (l *JSONLexer) feed(c byte) {
 	}
 }
 
+func (l *JSONLexer) currTokenAsUnsafeString() (string, error) {
+	// skipping "
+	return unsafeStringFromBytes(l.buf[l.currTokenStart+1 : l.currTokenEnd]), nil
+}
+
 func (l *JSONLexer) currTokenAsNumber() (float64, error) {
 	str := unsafeStringFromBytes(l.buf[l.currTokenStart:l.currTokenEnd])
 

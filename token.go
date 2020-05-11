@@ -24,9 +24,10 @@ func unsafeStringFromBytes(arr []byte) string {
 	return *(*string)(unsafe.Pointer(str))
 }
 
-func (l *JSONLexer) currTokenAsUnsafeString() (string, error) {
-	// skipping "
-	return unsafeStringFromBytes(l.buf[l.currTokenStart+1 : l.currTokenEnd]), nil
+// StringDeepCopy creates a copy of the given string with it's own underlying bytearray.
+// Use this function to make a copy of string returned by Token()
+func StringDeepCopy(s string) string {
+	return unsafeStringFromBytes([]byte(s))
 }
 
 // IsDelim reports whether the given rune is a JSON delimiter
