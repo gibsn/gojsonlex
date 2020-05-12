@@ -70,6 +70,45 @@ func TestJSONLexer(t *testing.T) {
 				},
 			},
 		},
+		{
+			input: `{"ua": "\"SomeUA\""}`,
+			output: []jsonLexerOutputToken{
+				{
+					"ua",
+					lexerTokenTypeString,
+				},
+				{
+					"\"SomeUA\"",
+					lexerTokenTypeString,
+				},
+			},
+		},
+		{
+			input: `{"ua": "\"\"Some\nWeird\tUA\"\""}`,
+			output: []jsonLexerOutputToken{
+				{
+					"ua",
+					lexerTokenTypeString,
+				},
+				{
+					"\"\"Some\nWeird\tUA\"\"",
+					lexerTokenTypeString,
+				},
+			},
+		},
+		{
+			input: `{"ua": "SomeInternationalUA\U123A"}`,
+			output: []jsonLexerOutputToken{
+				{
+					"ua",
+					lexerTokenTypeString,
+				},
+				{
+					"SomeInternationalUA\\U123A",
+					lexerTokenTypeString,
+				},
+			},
+		},
 	}
 
 	for _, testcase := range testcases {
@@ -124,6 +163,41 @@ func TestJSONLexer(t *testing.T) {
 			t.Errorf("testcase '%s': expected %d tokens, got %d",
 				testcase.input, len(testcase.output), tokensFound)
 			continue
+		}
+	}
+}
+
+func TestJSONLexerFails(t *testing.T) {
+	testcases := []jsonLexerTestCase{
+		{
+			input: `{"hello":"\u123r"}`,
+		},
+	}
+
+	for _, testcase := range testcases {
+		l, err := NewJSONLexer(strings.NewReader(testcase.input))
+		if err != nil {
+			t.Errorf("testcase '%s': could not create lexer: %v", testcase.input, err)
+			continue
+		}
+
+		l.SetBufSize(64)
+		errFound := false
+
+		for {
+			_, err := l.Token()
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+
+				errFound = true
+				break
+			}
+
+		}
+		if !errFound {
+			t.Errorf("testcase '%s': must have failed", testcase.input)
 		}
 	}
 }

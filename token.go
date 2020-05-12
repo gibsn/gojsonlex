@@ -2,6 +2,7 @@ package gojsonlex
 
 import (
 	"reflect"
+	"unicode"
 	"unsafe"
 )
 
@@ -24,6 +25,56 @@ func unsafeStringFromBytes(arr []byte) string {
 	return *(*string)(unsafe.Pointer(str))
 }
 
+// TODO support UTF16 unescaping
+func unescapeBytesInplace(data []byte) []byte {
+	offset := 0
+
+	pendingEscapedSymbol := false
+	// pendingUnicodeRune := false
+	//
+	// unicodeRuneBytesCounter := 0
+	for i, r := range data {
+		if pendingEscapedSymbol {
+			pendingEscapedSymbol = false
+
+			switch r {
+			case 'u', 'U':
+				offset-- // to save original sequence
+				// unicodeRuneBytesCounter = 0
+			case 'n':
+				r = '\n'
+			case 'r':
+				r = '\r'
+			case 't':
+				r = '\t'
+			case 'b':
+				r = '\b'
+			case 'f':
+				r = '\f'
+			case '\\':
+				r = '\\'
+			case '/':
+				r = '/'
+			case '"':
+				r = '"'
+			}
+		} else if r == '\\' {
+			pendingEscapedSymbol = true
+			offset += 1
+			continue
+		}
+		// } else if pendingUnicodeRune {
+		// 	unicodeRuneBytesCounter++
+		// 	offset++
+		// 	continue
+		// }
+
+		data[i-offset] = r
+	}
+
+	return data[:len(data)-offset]
+}
+
 // StringDeepCopy creates a copy of the given string with it's own underlying bytearray.
 // Use this function to make a copy of string returned by Token()
 func StringDeepCopy(s string) string {
@@ -33,19 +84,31 @@ func StringDeepCopy(s string) string {
 // IsDelim reports whether the given rune is a JSON delimiter
 func IsDelim(c rune) bool {
 	switch c {
-	case '{':
-		fallthrough
-	case '}':
-		fallthrough
-	case '[':
-		fallthrough
-	case ']':
-		fallthrough
-	case ':':
-		fallthrough
-	case ',':
+	case '{', '}', '[', ']', ':', ',':
 		return true
 	}
 
+	return false
+}
+
+func IsValidEscapedSymbol(c rune) bool {
+	switch c {
+	case 'n', 'r', 't', 'b', 'f', '\\', '/', '"', 'u', 'U':
+		return true
+	}
+
+	return false
+}
+
+func IsHexDigit(c rune) bool {
+	switch {
+	case unicode.IsDigit(c):
+		fallthrough
+	case 'a' <= c && c <= 'f':
+		return true
+	case 'A' <= c && c <= 'F':
+		return true
+
+	}
 	return false
 }

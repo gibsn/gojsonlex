@@ -18,6 +18,8 @@ const (
 	stateLexerIdle lexerState = iota
 	stateLexerSkipping
 	stateLexerString
+	stateLexerPendingEscapedSymbol
+	stateLexerUnicodeRune
 	stateLexerNumber
 	stateLexerBool
 	stateLexerNull
@@ -41,6 +43,8 @@ type JSONLexer struct {
 
 	buf     []byte
 	currPos int // current positin in buffer
+
+	unicodeRuneBytesCounter byte // a counter used to validate a unicode rune
 
 	currTokenStart int // positin in the buf of current token start (if any)
 	currTokenEnd   int // positin in the buf of current token start (if any)
@@ -72,7 +76,7 @@ func (l *JSONLexer) SetSkipDelims(mustSkip bool) {
 	l.skipDelims = true
 }
 
-func (l *JSONLexer) processStateSkipping(c byte) {
+func (l *JSONLexer) processStateSkipping(c byte) error {
 	switch {
 	case c == '"':
 		l.state = stateLexerString
@@ -95,21 +99,55 @@ func (l *JSONLexer) processStateSkipping(c byte) {
 	default:
 		// skipping
 	}
+
+	return nil
 }
 
-// TODO escaping
-func (l *JSONLexer) processStateString(c byte) {
-	switch {
-	case c == '"':
+func (l *JSONLexer) processStateString(c byte) error {
+	switch c {
+	case '"':
 		l.state = stateLexerSkipping
 		l.currTokenEnd = l.currPos
 		l.newTokenFound = true
+	case '\\':
+		l.state = stateLexerPendingEscapedSymbol
 	default:
 		// accumulating string
 	}
+
+	return nil
 }
 
-func (l *JSONLexer) processStateNumber(c byte) {
+func (l *JSONLexer) processStatePendingEscapedSymbol(c byte) error {
+	if !IsValidEscapedSymbol(rune(c)) {
+		return fmt.Errorf("invalid escape sequence '\\%c'", c)
+	}
+
+	if c == 'u' || c == 'U' {
+		l.state = stateLexerUnicodeRune
+		l.unicodeRuneBytesCounter = 0
+		return nil
+	}
+
+	l.state = stateLexerString
+
+	return nil
+}
+
+func (l *JSONLexer) processStateUnicodeRune(c byte) error {
+	if !IsHexDigit(rune(c)) {
+		return fmt.Errorf("invalid hex digit '%c' inside escaped unicode rune", c)
+	}
+
+	l.unicodeRuneBytesCounter++
+	if l.unicodeRuneBytesCounter == 4 {
+		l.state = stateLexerString
+	}
+
+	return nil
+}
+
+func (l *JSONLexer) processStateNumber(c byte) error {
 	switch {
 	case unicode.IsDigit(rune(c)):
 		fallthrough
@@ -122,26 +160,37 @@ func (l *JSONLexer) processStateNumber(c byte) {
 		l.currTokenEnd = l.currPos
 		l.newTokenFound = true
 	}
+
+	return nil
 }
 
-func (l *JSONLexer) feed(c byte) {
+func (l *JSONLexer) feed(c byte) error {
 	switch l.state {
 	case stateLexerSkipping:
-		l.processStateSkipping(c)
+		return l.processStateSkipping(c)
 	case stateLexerString:
-		l.processStateString(c)
+		return l.processStateString(c)
+	case stateLexerPendingEscapedSymbol:
+		return l.processStatePendingEscapedSymbol(c)
+	case stateLexerUnicodeRune:
+		return l.processStateUnicodeRune(c)
 	case stateLexerNumber:
-		l.processStateNumber(c)
+		return l.processStateNumber(c)
 	case stateLexerBool:
 		panic("parsing bool is not implemented")
 	case stateLexerNull:
 		panic("parsing null is not implemented")
 	}
+
+	return nil
 }
 
 func (l *JSONLexer) currTokenAsUnsafeString() (string, error) {
 	// skipping "
-	return unsafeStringFromBytes(l.buf[l.currTokenStart+1 : l.currTokenEnd]), nil
+	var subStr = l.buf[l.currTokenStart+1 : l.currTokenEnd]
+	subStr = unescapeBytesInplace(subStr)
+
+	return unsafeStringFromBytes(subStr), nil
 }
 
 func (l *JSONLexer) currTokenAsNumber() (float64, error) {
@@ -167,7 +216,7 @@ func (l *JSONLexer) currTokenAsBool() (bool, error) {
 	return false, fmt.Errorf("could not convert '%s' to bool", tokenAsStr)
 }
 
-func (l *JSONLexer) returnNewToken() (json.Token, error) {
+func (l *JSONLexer) currToken() (json.Token, error) {
 	switch l.currTokenType {
 	case lexerTokenTypeDelim:
 		return l.buf[l.currTokenStart], nil
@@ -243,7 +292,10 @@ func (l *JSONLexer) Token() (json.Token, error) {
 			continue // last fetching could probably return 0 new bytes
 		}
 
-		l.feed(l.buf[l.currPos])
+		if err := l.feed(l.buf[l.currPos]); err != nil {
+			return nil, err
+		}
+
 		l.currPos++
 
 		if l.newTokenFound {
@@ -252,5 +304,5 @@ func (l *JSONLexer) Token() (json.Token, error) {
 		}
 	}
 
-	return l.returnNewToken()
+	return l.currToken()
 }
