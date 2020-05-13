@@ -43,6 +43,10 @@ func newTokenGenericFromDelim(d byte) TokenGeneric {
 	}
 }
 
+func (t *TokenGeneric) Type() TokenType {
+	return t.t
+}
+
 // String returns string that points into internal lexer buffer and is guaranteed
 // to be valid until the next Token call, otherwise you MUST make a deep copy
 func (t *TokenGeneric) String() string {
