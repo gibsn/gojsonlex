@@ -16,6 +16,23 @@ const (
 	LexerTokenTypeNull
 )
 
+func (t TokenType) String() string {
+	switch t {
+	case LexerTokenTypeDelim:
+		return "delim"
+	case LexerTokenTypeString:
+		return "string"
+	case LexerTokenTypeNumber:
+		return "number"
+	case LexerTokenTypeBool:
+		return "bool"
+	case LexerTokenTypeNull:
+		return "null"
+	}
+
+	panic("unknown token type")
+}
+
 func unsafeStringFromBytes(arr []byte) string {
 	slice := (*reflect.SliceHeader)(unsafe.Pointer(&arr))
 	str := (*reflect.StringHeader)(unsafe.Pointer(slice))
