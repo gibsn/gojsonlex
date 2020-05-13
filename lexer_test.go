@@ -118,7 +118,7 @@ func TestJSONLexer(t *testing.T) {
 			continue
 		}
 
-		l.SetBufSize(64)
+		l.SetBufSize(4)
 
 		tokensFound := 0
 

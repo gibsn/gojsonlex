@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"strconv"
 	"unicode"
 )
@@ -52,6 +53,8 @@ type JSONLexer struct {
 	newTokenFound  bool // true if during the last feed() a new token was finished being parsed
 
 	skipDelims bool
+
+	debug bool
 }
 
 // NewJSONLexer creates a new JSONLexer with the given reader.
@@ -74,6 +77,11 @@ func (l *JSONLexer) SetBufSize(bufSize int) {
 // intention of doing full syntax analysis.
 func (l *JSONLexer) SetSkipDelims(mustSkip bool) {
 	l.skipDelims = true
+}
+
+// SetDebug enables debug logging
+func (l *JSONLexer) SetDebug(debug bool) {
+	l.debug = true
 }
 
 func (l *JSONLexer) processStateSkipping(c byte) error {
@@ -234,21 +242,22 @@ func (l *JSONLexer) fetchNewData() error {
 	// if now some token is in the middle of parsing we gotta copy the part of it
 	// that has already been parsed, otherwise we won't be able to construct it
 	if l.state != stateLexerSkipping && l.state != stateLexerIdle {
-		// checking for overlapping
+		dstBuf := l.buf
+
+		// checking if buf must be extended
 		currTokenBytesParsed := l.currPos - l.currTokenStart
 		if currTokenBytesParsed >= l.currTokenStart {
-			l.currTokenEnd = l.currPos
-			parsedPart, _ := l.currTokenAsUnsafeString()
-
-			return fmt.Errorf(
-				"failed to fetchNewData due to buf overlapping, the parsed part is '%s'",
-				StringDeepCopy(parsedPart))
+			if l.debug {
+				log.Printf("debug: gojsonlex: growing buffer %d -> %d", len(l.buf), 2*len(l.buf))
+			}
+			dstBuf = make([]byte, 2*len(l.buf))
 		}
 
 		// copying the part that has already been parsed
-		copy(l.buf[0:], l.buf[l.currTokenStart:])
+		copy(dstBuf, l.buf[l.currTokenStart:])
 		l.currTokenStart = 0
 		l.currPos = currTokenBytesParsed
+		l.buf = dstBuf
 	} else {
 		l.currPos = 0
 	}
