@@ -28,11 +28,11 @@ func TestJSONLexer(t *testing.T) {
 			output: []jsonLexerOutputToken{
 				{
 					"hello",
-					lexerTokenTypeString,
+					LexerTokenTypeString,
 				},
 				{
 					"world",
-					lexerTokenTypeString,
+					LexerTokenTypeString,
 				},
 			},
 		},
@@ -41,15 +41,15 @@ func TestJSONLexer(t *testing.T) {
 			output: []jsonLexerOutputToken{
 				{
 					"hello",
-					lexerTokenTypeString,
+					LexerTokenTypeString,
 				},
 				{
 					"0",
-					lexerTokenTypeString,
+					LexerTokenTypeString,
 				},
 				{
 					float64(10),
-					lexerTokenTypeNumber,
+					LexerTokenTypeNumber,
 				},
 			},
 		},
@@ -58,15 +58,15 @@ func TestJSONLexer(t *testing.T) {
 			output: []jsonLexerOutputToken{
 				{
 					"liveness_info",
-					lexerTokenTypeString,
+					LexerTokenTypeString,
 				},
 				{
 					"tstamp",
-					lexerTokenTypeString,
+					LexerTokenTypeString,
 				},
 				{
 					"2020-05-06T12:57:14.193447Z",
-					lexerTokenTypeString,
+					LexerTokenTypeString,
 				},
 			},
 		},
@@ -75,11 +75,11 @@ func TestJSONLexer(t *testing.T) {
 			output: []jsonLexerOutputToken{
 				{
 					"ua",
-					lexerTokenTypeString,
+					LexerTokenTypeString,
 				},
 				{
 					"\"SomeUA\"",
-					lexerTokenTypeString,
+					LexerTokenTypeString,
 				},
 			},
 		},
@@ -88,11 +88,11 @@ func TestJSONLexer(t *testing.T) {
 			output: []jsonLexerOutputToken{
 				{
 					"ua",
-					lexerTokenTypeString,
+					LexerTokenTypeString,
 				},
 				{
 					"\"\"Some\nWeird\tUA\"\"",
-					lexerTokenTypeString,
+					LexerTokenTypeString,
 				},
 			},
 		},
@@ -101,11 +101,11 @@ func TestJSONLexer(t *testing.T) {
 			output: []jsonLexerOutputToken{
 				{
 					"ua",
-					lexerTokenTypeString,
+					LexerTokenTypeString,
 				},
 				{
 					"SomeInternationalUA\\U123A",
-					lexerTokenTypeString,
+					LexerTokenTypeString,
 				},
 			},
 		},
@@ -135,19 +135,19 @@ func TestJSONLexer(t *testing.T) {
 
 			expectedOutput := testcase.output[tokensFound]
 			switch expectedOutput.tokenType {
-			case lexerTokenTypeString:
+			case LexerTokenTypeString:
 				if token != expectedOutput.token.(string) {
 					t.Errorf("testcase '%s': expected token '%v', got '%s'",
 						testcase.input, testcase.output[tokensFound].token, token)
 					break
 				}
-			case lexerTokenTypeNumber:
+			case LexerTokenTypeNumber:
 				if token != expectedOutput.token.(float64) {
 					t.Errorf("testcase '%s': expected token '%v', got '%f'",
 						testcase.input, testcase.output[tokensFound].token, token)
 					break
 				}
-			case lexerTokenTypeBool:
+			case LexerTokenTypeBool:
 				if token != expectedOutput.token.(bool) {
 					t.Errorf("testcase '%s': expected token '%v', got '%t'",
 						testcase.input, testcase.output[tokensFound].token, token)
@@ -171,6 +171,12 @@ func TestJSONLexerFails(t *testing.T) {
 	testcases := []jsonLexerTestCase{
 		{
 			input: `{"hello":"\u123r"}`,
+		},
+		{
+			input: `{"hello":"\a"}`,
+		},
+		{
+			input: `{"hello`,
 		},
 	}
 
@@ -216,7 +222,7 @@ const (
 		{ "name" : "args", "path" : [ "h" ], "value" : "internal-api.devmail.ru" },
 		{ "name" : "args", "path" : [ "ip" ], "value" : "127.0.0.1" },
 		{ "name" : "args", "path" : [ "rid" ], "value" : "8c28ca1055" },
-		{ "name" : "args", "path" : [ "ua" ], "value" : "Go-http-client/1.1" }
+		{ "name" : "args", "path" : [ "ua" ], "value" : "\"Go-http-client/1.1\"" }
 	  ]
 	}`
 )
@@ -228,30 +234,6 @@ func generateBenchmarkInput(w io.Writer, numObjects int) {
 		}
 
 		w.Write([]byte(jsonSample))
-	}
-}
-
-func BenchmarkJSONLexer(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		input := bytes.NewBuffer(nil)
-		generateBenchmarkInput(input, 100)
-		p, err := NewJSONLexer(input)
-		if err != nil {
-			b.Errorf("could not create JSONLexer: %v", err)
-		}
-		b.StartTimer()
-
-		for {
-			t, err := p.Token()
-			if err != nil {
-				b.Errorf("could not get next token: %v", err)
-			}
-
-			if t == nil {
-				break
-			}
-		}
 	}
 }
 
@@ -267,6 +249,54 @@ func BenchmarkEncodingJSON(b *testing.B) {
 
 		for {
 			_, err := dec.Token()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				b.Errorf("could not get next token: %v", err)
+			}
+		}
+	}
+}
+
+func BenchmarkJSONLexer(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		input := bytes.NewBuffer(nil)
+		generateBenchmarkInput(input, 100)
+		l, err := NewJSONLexer(input)
+		if err != nil {
+			b.Errorf("could not create JSONLexer: %v", err)
+		}
+
+		b.StartTimer()
+
+		for {
+			_, err := l.Token()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				b.Errorf("could not get next token: %v", err)
+			}
+		}
+	}
+}
+
+func BenchmarkJSONLexerFast(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		input := bytes.NewBuffer(nil)
+		generateBenchmarkInput(input, 100)
+		l, err := NewJSONLexer(input)
+		if err != nil {
+			b.Errorf("could not create JSONLexer: %v", err)
+		}
+
+		b.StartTimer()
+
+		for {
+			_, err := l.TokenGeneric()
 			if err == io.EOF {
 				break
 			}

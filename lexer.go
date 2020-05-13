@@ -88,21 +88,21 @@ func (l *JSONLexer) processStateSkipping(c byte) error {
 	switch {
 	case c == '"':
 		l.state = stateLexerString
-		l.currTokenType = lexerTokenTypeString
+		l.currTokenType = LexerTokenTypeString
 		l.currTokenStart = l.currPos
 	case unicode.IsDigit(rune(c)):
 		l.state = stateLexerNumber
-		l.currTokenType = lexerTokenTypeNumber
+		l.currTokenType = LexerTokenTypeNumber
 		l.currTokenStart = l.currPos
 	case c == 't' || c == 'T':
 		fallthrough
 	case c == 'f' || c == 'F':
 		l.state = stateLexerBool
-		l.currTokenType = lexerTokenTypeBool
+		l.currTokenType = LexerTokenTypeBool
 		l.currTokenStart = l.currPos
 	case c == 'n' || c == 'N':
 		l.state = stateLexerNull
-		l.currTokenType = lexerTokenTypeNull
+		l.currTokenType = LexerTokenTypeNull
 		l.currTokenStart = l.currPos
 	default:
 		// skipping
@@ -193,12 +193,12 @@ func (l *JSONLexer) feed(c byte) error {
 	return nil
 }
 
-func (l *JSONLexer) currTokenAsUnsafeString() (string, error) {
+func (l *JSONLexer) currTokenAsUnsafeString() string {
 	// skipping "
 	var subStr = l.buf[l.currTokenStart+1 : l.currTokenEnd]
 	subStr = unescapeBytesInplace(subStr)
 
-	return unsafeStringFromBytes(subStr), nil
+	return unsafeStringFromBytes(subStr)
 }
 
 func (l *JSONLexer) currTokenAsNumber() (float64, error) {
@@ -206,7 +206,7 @@ func (l *JSONLexer) currTokenAsNumber() (float64, error) {
 
 	n, err := strconv.ParseFloat(str, 64)
 	if err != nil {
-		return 0, fmt.Errorf("could not convert '%s' to float64: %w", str, err)
+		return 0, fmt.Errorf("could not convert '%s' to float64: %w", StringDeepCopy(str), err)
 	}
 
 	return n, nil
@@ -221,18 +221,21 @@ func (l *JSONLexer) currTokenAsBool() (bool, error) {
 	}
 
 	tokenAsStr := unsafeStringFromBytes(l.buf[l.currTokenStart:l.currTokenEnd])
-	return false, fmt.Errorf("could not convert '%s' to bool", tokenAsStr)
+	return false, fmt.Errorf("could not convert '%s' to bool", StringDeepCopy(tokenAsStr))
 }
 
-func (l *JSONLexer) currToken() (json.Token, error) {
+func (l *JSONLexer) currToken() (TokenGeneric, error) {
 	switch l.currTokenType {
-	case lexerTokenTypeDelim:
-		return l.buf[l.currTokenStart], nil
-	case lexerTokenTypeString:
-		return l.currTokenAsUnsafeString()
-	case lexerTokenTypeNumber:
-		return l.currTokenAsNumber()
-	case lexerTokenTypeBool:
+	case LexerTokenTypeDelim:
+		return newTokenGenericFromDelim(l.buf[l.currTokenStart]), nil
+	case LexerTokenTypeString:
+		return newTokenGenericFromString(l.currTokenAsUnsafeString()), nil
+	case LexerTokenTypeNumber:
+		n, err := l.currTokenAsNumber()
+		return newTokenGenericFromNumber(n), err
+	case LexerTokenTypeBool:
+		fallthrough
+	case LexerTokenTypeNull:
 	}
 
 	panic("unexpected token type")
@@ -274,20 +277,44 @@ func (l *JSONLexer) fetchNewData() error {
 	return nil
 }
 
-func (l *JSONLexer) shutdown() (json.Token, error) {
+func (l *JSONLexer) shutdown() error {
 	if l.state != stateLexerSkipping {
-		return nil, fmt.Errorf("unexpected EOF")
+		return fmt.Errorf("unexpected EOF")
 	}
 
-	return nil, io.EOF
+	return io.EOF
 }
 
 // Token returns the next JSON token. All strings returned by Token are guaranteed to be valid
 // until the next Token call, otherwise you MUST make a deep copy.
 func (l *JSONLexer) Token() (json.Token, error) {
+	t, err := l.TokenGeneric()
+	if err != nil {
+		return nil, err
+	}
+
+	switch t.t {
+	case LexerTokenTypeNull:
+		return nil, nil
+	case LexerTokenTypeDelim:
+		return t.delim, nil
+	case LexerTokenTypeNumber:
+		return t.number, nil
+	case LexerTokenTypeString:
+		return t.str, nil
+	case LexerTokenTypeBool:
+		return t.boolean, nil
+	}
+
+	panic("unknown token type")
+}
+
+// TokenGeneric is a more efficient version of Token(). All strings returned by Token
+// are guaranteed to be valid until the next Token call, otherwise you MUST make a deep copy.
+func (l *JSONLexer) TokenGeneric() (TokenGeneric, error) {
 	if l.state == stateLexerIdle {
 		if err := l.fetchNewData(); err != nil {
-			return nil, err
+			return TokenGeneric{}, err
 		}
 
 		l.state = stateLexerSkipping
@@ -296,18 +323,18 @@ func (l *JSONLexer) Token() (json.Token, error) {
 	for {
 		if l.currPos >= len(l.buf) {
 			if l.readingFinished {
-				return l.shutdown()
+				return TokenGeneric{}, l.shutdown()
 			}
 
 			if err := l.fetchNewData(); err != nil {
-				return nil, err
+				return TokenGeneric{}, err
 			}
 
 			continue // last fetching could probably return 0 new bytes
 		}
 
 		if err := l.feed(l.buf[l.currPos]); err != nil {
-			return nil, err
+			return TokenGeneric{}, err
 		}
 
 		l.currPos++

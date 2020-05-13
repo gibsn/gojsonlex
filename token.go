@@ -9,11 +9,11 @@ import (
 type TokenType byte
 
 const (
-	lexerTokenTypeDelim TokenType = iota
-	lexerTokenTypeString
-	lexerTokenTypeNumber
-	lexerTokenTypeBool
-	lexerTokenTypeNull
+	LexerTokenTypeDelim TokenType = iota
+	LexerTokenTypeString
+	LexerTokenTypeNumber
+	LexerTokenTypeBool
+	LexerTokenTypeNull
 )
 
 func unsafeStringFromBytes(arr []byte) string {
