@@ -235,15 +235,20 @@ func (l *JSONLexer) fetchNewData() error {
 	// that has already been parsed, otherwise we won't be able to construct it
 	if l.state != stateLexerSkipping && l.state != stateLexerIdle {
 		// checking for overlapping
-		currTokenRunesParsed := len(l.buf) - l.currTokenStart
-		if currTokenRunesParsed >= l.currTokenStart {
-			return fmt.Errorf("failed to fetchNewData due to buf overlapping")
+		currTokenBytesParsed := l.currPos - l.currTokenStart
+		if currTokenBytesParsed >= l.currTokenStart {
+			l.currTokenEnd = l.currPos
+			parsedPart, _ := l.currTokenAsUnsafeString()
+
+			return fmt.Errorf(
+				"failed to fetchNewData due to buf overlapping, the parsed part is '%s'",
+				StringDeepCopy(parsedPart))
 		}
 
 		// copying the part that has already been parsed
 		copy(l.buf[0:], l.buf[l.currTokenStart:])
 		l.currTokenStart = 0
-		l.currPos = currTokenRunesParsed
+		l.currPos = currTokenBytesParsed
 	} else {
 		l.currPos = 0
 	}
