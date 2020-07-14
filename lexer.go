@@ -30,9 +30,9 @@ const (
 // JSON tokens. JSONLexer does its own IO buffering so prefer low-level readers if you want
 // to miminize memory footprint.
 //
-// JSONLexer uses a ring buffer of fixed size (4096 bytes by default) and currently will fail
-// if some token length  exceeds the size of buffer, however you can tweak buffer size on
-// JSONLexer creation.
+// JSONLexer uses a ring buffer for parsing tokens, every token must fit in its size, otherwise
+// buffer will be automatically grown. Initial size of buffer is 4096 bytes, however you can tweak
+// it with SetBufSize() in case you know that most tokens are going to be long.
 //
 // JSONLexer uses unsafe pointers into the underlying buf to minimize allocations, see Token()
 // for the provided guarantees.
