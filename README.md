@@ -12,15 +12,15 @@ Let's consider a case when you want to parse the output of some tool that encode
       "name": "Metallica",
       "origin": "USA",
       "albums": [
-        // all albums here
+        ...
       ]
     },
-    // ...
+    ...
     {
       "name": "Enter Shikari",
       "origin": "England"
       "albums": [
-        // all albums here
+        ...
       ]
     }
   ]
@@ -66,14 +66,45 @@ for {
 	if err != nil {
 		// ...
 	}
+	
+	s, ok := currToken.(string)
+	if !ok {
+		continue
+	}
 
 	switch state {
 	case stateSearchingForOriginKey:
-		if currToken == "origin" {
+		if s == "origin" {
 			state := pendingOriginValue
 		}
 	case statePendingOriginValue:
-		fmt.Println(currToken)
+		fmt.Println(s)
+		state = searchingForOriginKey
+	}
+}
+```
+
+Though `gojsonlex.Token()` is faster than that from `encoding/json`, it sacfrifices performance in order to match the default interface. You may want to consider using `TokenFast()` to achieve the best performance (in exchange for more coding):
+```
+for {
+	currToken, err := lexer.TokenFast()
+	if err != nil {
+		// ...
+	}
+	
+	if currToken.Type() != LexerTokenTypeString {
+		continue
+	}
+	
+	s := currToken.String()
+
+	switch state {
+	case stateSearchingForOriginKey:
+		if s == "origin" {
+			state := pendingOriginValue
+		}
+	case statePendingOriginValue:
+		fmt.Println(s)
 		state = searchingForOriginKey
 	}
 }
@@ -82,7 +113,6 @@ for {
 In order to maintain zero allocations `Token()` will always return a unsafe string that is valid only until the next `Token()` call. You must make a deep copy (using `StringDeepCopy()`) of that string in case you may need it after the next `Token()` call.
 
 ```
-
 
 # Benchmarks
 ```
