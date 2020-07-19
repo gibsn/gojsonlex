@@ -34,21 +34,20 @@ Let's say "albums" can be arbitrary long, the whole JSON is 10GB, but you actual
 In this concrete case you do not actually need to parse any arbitrary JSON, you are ok with a more narrow grammar. A parser for such a grammar could look like this:
 
 ```
-	for {
-		currToken, err := lexer.Token()
-		if err != nil {
-			// ...
-		}
+for {
+	currToken, err := lexer.Token()
+	if err != nil {
+		// ...
+	}
 
-		switch state {
-		case searchingForOriginKey:
-			if currToken == "origin" {
-				state := pendingOriginValue
-			}
-		case pendingOriginValue:
-			fmt.Println(currToken)
-			state = searchingForOriginKey
+	switch state {
+	case searchingForOriginKey:
+		if currToken == "origin" {
+			state := pendingOriginValue
 		}
+	case pendingOriginValue:
+		fmt.Println(currToken)
+		state = searchingForOriginKey
 	}
 }
 ```
