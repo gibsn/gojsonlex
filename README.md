@@ -1,5 +1,6 @@
 # GoJSONLex
-`gojsonlex` is a fast drop in replacement for encoding/json's lexer. 
+
+`gojsonlex` is a drop in replacement for encoding/json's lexer, that is optimized for efficiency (both CPU and memory).
 
 # Motivation
 
