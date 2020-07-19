@@ -27,7 +27,7 @@ Let's consider a case when you want to parse the output of some tool that encode
 }
 ```
 
-Let's say "albums" can be arbitrary long, the whole JSON is 10GB, but you actually want to print out all "origin" values and don't care about the rest. All JSON parsers that I checked in this case are subject to 2 main problems:
+Let's say "albums" can be arbitrary long, the whole JSON is 10GB, but you actually want to print out all "origin" values and don't care about the rest. All JSON parsers that I checked are subject to 2 main problems:
 * library API requires the whole input in memory (which is bad since our JSON is huge);
 * a large portion of input if bufferised in order to parse a composite (like array) type (which is bad since "albums" can be huge).
 
