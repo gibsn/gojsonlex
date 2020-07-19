@@ -4,7 +4,7 @@ gojsonlex is a fast drop in replacement for encoding/json's lexer.
 
 # Motivation
 
-gojsonlex can be mainly used to implement your own JSON parser. Let's consider a case when you want to parse the output of some tool that encodes binary data to one JSON dict:
+Let's consider a case when you want to parse the output of some tool that encodes binary data to one JSON dict:
 ```
 {
   "bands": [
@@ -25,17 +25,39 @@ gojsonlex can be mainly used to implement your own JSON parser. Let's consider a
     }
   ]
 }
-
-Let's say you want to print out 
 ```
 
+Let's say "albums" can be arbitrary long, the whole JSON is 10GB, but you actually want to print out all "origin" values and don't care about the rest. All JSON parsers that I checked in this case are subject to 2 main problems:
+* library API requires the whole input in memory (which is bad since our JSON is huge);
+* a large portion of input if bufferised in order to parse a composite (like array) type (which is bad since "albums" can be huge).
 
-When working with JSON in most cases you will be satisfied with one of the many fast decoding/encoding libraries implemented, but lets say you want to parse 
+In this concrete case you do not actually need to parse any arbitrary JSON, you are ok with a more narrow grammar. A parser for such a grammar could look like this:
 
+```
+	for {
+		currToken, err := lexer.Token()
+		if err != nil {
+			// ...
+		}
 
-# API
+		switch state {
+		case searchingForOriginKey:
+			if currToken == "origin" {
+				state := pendingOriginValue
+			}
+		case pendingOriginValue:
+			fmt.Println(currToken)
+			state = searchingForOriginKey
+		}
+	}
+}
+```
 
+Ok, so now we need some JSON lexer that will be free of the problems described. Actually, the standard `encoding/json` package provides such a lexer, but it could be optimized to consume less CPU. That's how `gojsonlex` was born.
 
+# Overview
+
+TODO
 
 
 # Benchmarks
