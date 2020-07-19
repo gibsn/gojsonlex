@@ -1,6 +1,6 @@
 # GoJSONLex
 
-`gojsonlex` is a drop in replacement for `encoding/json` lexer that is optimized for efficiency. `gojsonlex` is 2-3 times faster than `encoding/json` and requires memory only enough to bufferise the longest token in the input.
+`gojsonlex` is a drop in replacement for `encoding/json` lexer optimised for efficiency. `gojsonlex` is 2-3 times faster than `encoding/json` and requires memory only enough to buffer the longest token in the input.
 
 # Motivation
 
@@ -48,7 +48,7 @@ for {
 }
 ```
 
-Ok, so now you need a JSON lexer. Some lexers that I checked did bufferise a large portion of input in order to parse a composite type (which is bad since "albums" can be huge). The only lexer that did not require that much memory was the standard `encoding/json`, however it could be optimized to consume less CPU. That's how `gojsonlex` was born.
+Ok, so now you need a JSON lexer. Some lexers that I checked did buffer a large portion of input in order to parse a composite type (which is bad since "albums" can be huge). The only lexer that did not require that much memory was the standard `encoding/json`, however it could be optimized to consume less CPU. That's how `gojsonlex` was born.
 
 # Overview
 
