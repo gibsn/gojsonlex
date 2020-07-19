@@ -1,6 +1,4 @@
-# gojsonlex 
-
-gojsonlex is a fast drop in replacement for encoding/json's lexer. 
+`gojsonlex` is a fast drop in replacement for encoding/json's lexer. 
 
 # Motivation
 
