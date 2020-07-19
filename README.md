@@ -112,8 +112,6 @@ for {
 
 In order to maintain zero allocations `Token()` will always return a unsafe string that is valid only until the next `Token()` call. You must make a deep copy (using `StringDeepCopy()`) of that string in case you may need it after the next `Token()` call.
 
-```
-
 # Benchmarks
 ```
 BenchmarkEncodingJSON-8    	     644	   1605048 ns/op	  342976 B/op	   21906 allocs/op
