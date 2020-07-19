@@ -288,7 +288,7 @@ func (l *JSONLexer) shutdown() error {
 // Token returns the next JSON token. All strings returned by Token are guaranteed to be valid
 // until the next Token call, otherwise you MUST make a deep copy.
 func (l *JSONLexer) Token() (json.Token, error) {
-	t, err := l.TokenGeneric()
+	t, err := l.TokenFast()
 	if err != nil {
 		return nil, err
 	}
@@ -309,9 +309,9 @@ func (l *JSONLexer) Token() (json.Token, error) {
 	panic("unknown token type")
 }
 
-// TokenGeneric is a more efficient version of Token(). All strings returned by Token
+// TokenFast is a more efficient version of Token(). All strings returned by Token
 // are guaranteed to be valid until the next Token call, otherwise you MUST make a deep copy.
-func (l *JSONLexer) TokenGeneric() (TokenGeneric, error) {
+func (l *JSONLexer) TokenFast() (TokenGeneric, error) {
 	if l.state == stateLexerIdle {
 		if err := l.fetchNewData(); err != nil {
 			return TokenGeneric{}, err

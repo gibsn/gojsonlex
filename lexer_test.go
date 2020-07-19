@@ -296,7 +296,7 @@ func BenchmarkJSONLexerFast(b *testing.B) {
 		b.StartTimer()
 
 		for {
-			_, err := l.TokenGeneric()
+			_, err := l.TokenFast()
 			if err == io.EOF {
 				break
 			}
