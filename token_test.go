@@ -76,7 +76,7 @@ func TestUnescapeBytesInplace(t *testing.T) {
 		},
 		{
 			input:  []byte("hello\\u123aworld"),
-			output: []byte("hello\\u123aworld"),
+			output: []byte("hello\\u123world"),
 		},
 	}
 	for _, testcase := range testcases {
