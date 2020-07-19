@@ -84,6 +84,8 @@ for {
 }
 ```
 
+In order to maintain zero allocations `Token()` will always return an unsafe string that is valid only until the next `Token()` call. You must make a deep copy (using `StringDeepCopy()`) of that string in case you may need it after the next `Token()` call.
+
 Though `gojsonlex.Token()` is faster than that from `encoding/json`, it sacfrifices performance in order to match the default interface. You may want to consider using `TokenFast()` to achieve the best performance (in exchange for more coding):
 ```
 for {
@@ -110,7 +112,6 @@ for {
 }
 ```
 
-In order to maintain zero allocations `Token()` will always return a unsafe string that is valid only until the next `Token()` call. You must make a deep copy (using `StringDeepCopy()`) of that string in case you may need it after the next `Token()` call.
 
 # Benchmarks
 ```
