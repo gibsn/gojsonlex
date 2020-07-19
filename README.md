@@ -1,3 +1,4 @@
+# GoJSONLex
 `gojsonlex` is a fast drop in replacement for encoding/json's lexer. 
 
 # Motivation
