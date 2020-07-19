@@ -4,7 +4,7 @@ gojsonlex is a fast drop in replacement for encoding/json's lexer.
 
 # Motivation
 
-Let's consider a case when you want to parse the output of some tool that encodes binary data to one JSON dict:
+Let's consider a case when you want to parse the output of some tool that encodes binary data to one huge JSON dict:
 ```
 {
   "bands": [
