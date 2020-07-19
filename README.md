@@ -1,6 +1,6 @@
 # GoJSONLex
 
-`gojsonlex` is a drop in replacement for `encoding/json` lexer, that is optimized for efficiency (both CPU and memory).
+`gojsonlex` is a drop in replacement for `encoding/json` lexer that is optimized for efficiency. `gojsonlex` is 2-3 times faster than `encoding/json` and requires memory only enough to bufferise the longest token in the input.
 
 # Motivation
 
@@ -27,11 +27,7 @@ Let's consider a case when you want to parse the output of some tool that encode
 }
 ```
 
-Let's say "albums" can be arbitrary long, the whole JSON is 10GB, but you actually want to print out all "origin" values and don't care about the rest. All JSON parsers that I checked are subject to 2 main problems:
-* library API requires the whole input in memory (which is bad since our JSON is huge);
-* a large portion of input is bufferised in order to parse a composite type (which is bad since "albums" can be huge).
-
-In this concrete case you do not actually need to parse any arbitrary JSON, you are ok with a more narrow grammar. A parser for such a grammar could look like this:
+Let's say "albums" can be arbitrary long, the whole JSON is 10GB, but you actually want to print out all "origin" values and don't care about the rest. You do not want to decode the whole JSON into one struct (like most JSON parsers do) since it can be huge. Luckily in this case you do not actually need to parse any arbitrary JSON, you are ok with a more narrow grammar. A parser for such a grammar could look like this:
 
 ```
 for {
@@ -52,11 +48,40 @@ for {
 }
 ```
 
-Ok, so now we need some JSON lexer that will be free of the problems described. Actually, the standard `encoding/json` package provides such a lexer, but it could be optimized to consume less CPU. That's how `gojsonlex` was born.
+Ok, so now you need a JSON lexer. Some lexers that I checked did bufferise a large portion of input in order to parse a composite type (which is bad since "albums" can be huge). The only lexer that did not require that much memory was the standard `encoding/json`, however it could be optimized to consume less CPU. That's how `gojsonlex` was born.
 
 # Overview
 
-TODO
+Example from the previous section could be implemented with `gojsonlex` like this:
+```
+l, err := gojsonlex.NewJSONLexer(r)
+if err != nil {
+	// ...
+}
+
+state = stateSearchingForOriginKey
+
+for {
+	currToken, err := lexer.Token()
+	if err != nil {
+		// ...
+	}
+
+	switch state {
+	case stateSearchingForOriginKey:
+		if currToken == "origin" {
+			state := pendingOriginValue
+		}
+	case statePendingOriginValue:
+		fmt.Println(currToken)
+		state = searchingForOriginKey
+	}
+}
+```
+
+In order to maintain zero allocations `Token()` will always return a unsafe string that is valid only until the next `Token()` call. You must make a deep copy (using `StringDeepCopy()`) of that string in case you may need it after the next `Token()` call.
+
+```
 
 
 # Benchmarks
