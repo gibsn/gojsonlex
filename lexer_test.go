@@ -109,6 +109,32 @@ func TestJSONLexer(t *testing.T) {
 				},
 			},
 		},
+		{
+			input: `{"ua": Null}`,
+			output: []jsonLexerOutputToken{
+				{
+					"ua",
+					LexerTokenTypeString,
+				},
+				{
+					nil,
+					LexerTokenTypeNull,
+				},
+			},
+		},
+		{
+			input: `{"ua": null}`,
+			output: []jsonLexerOutputToken{
+				{
+					"ua",
+					LexerTokenTypeString,
+				},
+				{
+					nil,
+					LexerTokenTypeNull,
+				},
+			},
+		},
 	}
 
 	for _, testcase := range testcases {
@@ -177,6 +203,9 @@ func TestJSONLexerFails(t *testing.T) {
 		},
 		{
 			input: `{"hello`,
+		},
+		{
+			input: `{"hello": Nuii}`,
 		},
 	}
 
