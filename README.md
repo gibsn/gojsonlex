@@ -8,6 +8,8 @@ only enough to buffer the longest token in the input.
 
 TODO
 
+For now you can refer to 'Overview' and 'Examples' sections to get understading of the library API.
+
 # Motivation
 
 Let's consider a case when you want to parse the output of some tool that encodes binary data to one huge JSON dict:
