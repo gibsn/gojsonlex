@@ -6,9 +6,7 @@ only enough to buffer the longest token in the input.
 
 # API Documentation
 
-TODO
-
-For now you can refer to 'Overview' and 'Examples' sections to get understading of the library API.
+https://pkg.go.dev/github.com/gibsn/gojsonlex
 
 # Motivation
 
