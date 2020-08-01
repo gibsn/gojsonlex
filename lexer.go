@@ -172,6 +172,23 @@ func (l *JSONLexer) processStateNumber(c byte) error {
 	return nil
 }
 
+func (l *JSONLexer) processStateNull(c byte) error {
+	currPositionInToken := l.currPos - l.currTokenStart
+	expectedLiteral := rune("null"[currPositionInToken])
+
+	if unicode.ToLower(rune(c)) != expectedLiteral {
+		return fmt.Errorf("invalid literal '%c' while parsing 'Null' value", c)
+	}
+
+	if currPositionInToken == len("null")-1 {
+		l.state = stateLexerSkipping
+		l.currTokenEnd = l.currPos
+		l.newTokenFound = true
+	}
+
+	return nil
+}
+
 func (l *JSONLexer) feed(c byte) error {
 	switch l.state {
 	case stateLexerSkipping:
@@ -187,7 +204,7 @@ func (l *JSONLexer) feed(c byte) error {
 	case stateLexerBool:
 		panic("parsing bool is not implemented")
 	case stateLexerNull:
-		panic("parsing null is not implemented")
+		return l.processStateNull(c)
 	}
 
 	return nil
@@ -234,8 +251,9 @@ func (l *JSONLexer) currToken() (TokenGeneric, error) {
 		n, err := l.currTokenAsNumber()
 		return newTokenGenericFromNumber(n), err
 	case LexerTokenTypeBool:
-		fallthrough
+		break
 	case LexerTokenTypeNull:
+		return newTokenGenericFromNull(), nil
 	}
 
 	panic("unexpected token type")
