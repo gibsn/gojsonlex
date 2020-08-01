@@ -121,10 +121,10 @@ for {
 ```
 
 # Examples
-Please refer to the 'examples' directory for examples of `gojsonlex` usage. Run `make examples` to build all examples.
+Please refer to the 'examples' directory for the examples of `gojsonlex` usage. Run `make examples` to build all examples.
 
 ## stdinparser
-`stdinparser` is an example of simple utility that reads JSON from StdIn and dumps tokens to StdOut
+`stdinparser` is a simple utility that reads JSON from StdIn and dumps JSON tokens to StdOut
 
 
 # Benchmarks
