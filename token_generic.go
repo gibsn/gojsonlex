@@ -1,5 +1,6 @@
 package gojsonlex
 
+// TokenGeneric is a generic struct used to represent any possible JSON token
 type TokenGeneric struct {
 	t TokenType
 
@@ -43,6 +44,7 @@ func newTokenGenericFromDelim(d byte) TokenGeneric {
 	}
 }
 
+// Type returns type of the token
 func (t *TokenGeneric) Type() TokenType {
 	return t.t
 }

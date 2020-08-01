@@ -108,6 +108,8 @@ func IsDelim(c rune) bool {
 	return false
 }
 
+// IsValidEscapedSymbol reports whether the given rune is one of the special symbols
+// permitted in JSON
 func IsValidEscapedSymbol(c rune) bool {
 	switch c {
 	case 'n', 'r', 't', 'b', 'f', '\\', '/', '"', 'u', 'U':
@@ -117,15 +119,16 @@ func IsValidEscapedSymbol(c rune) bool {
 	return false
 }
 
+// IsHexDigit reports wheter the given rune is a valid hex digit
 func IsHexDigit(c rune) bool {
 	switch {
 	case unicode.IsDigit(c):
 		fallthrough
 	case 'a' <= c && c <= 'f':
-		return true
+		fallthrough
 	case 'A' <= c && c <= 'F':
 		return true
-
 	}
+
 	return false
 }
