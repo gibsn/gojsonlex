@@ -75,13 +75,17 @@ func TestUnescapeBytesInplace(t *testing.T) {
 			output: []byte("\"hello world\""),
 		},
 		{
-			input:  []byte("hello\\u123aworld"),
-			output: []byte("hello\\u123aworld"),
+			input:  []byte("hello \\u043f\\u0440\\u0438\\u0432\\u0435\\u0442\\u0020\\u043c\\u0438\\u0440 world"),
+			output: []byte("hello привет мир world"),
 		},
 	}
 	for _, testcase := range testcases {
 		currIn := string(testcase.input) // making a copy
-		currOut := unescapeBytesInplace(testcase.input)
+		currOut, err := unescapeBytesInplace(testcase.input)
+		if err != nil {
+			t.Errorf("testcase '%s': %v", currIn, err)
+			continue
+		}
 
 		if string(testcase.output) != string(currOut) {
 			t.Errorf("testcase '%s': got '%s', expected '%s'",
@@ -90,4 +94,20 @@ func TestUnescapeBytesInplace(t *testing.T) {
 	}
 }
 
+func TestUnescapeBytesInplaceFails(t *testing.T) {
+	testcases := []unescapeBytesInplaceTestCase{
+		// {
+		// 	input: []byte(""),
+		// },
+	}
+	for _, testcase := range testcases {
+		currIn := string(testcase.input) // making a copy
+		_, err := unescapeBytesInplace(testcase.input)
+		if err == nil {
+			t.Errorf("testcase '%s': must have failed", currIn)
+		}
+	}
+}
+
 // TODO tests for IsDelim
+// TODO tests for UTF16ToUTF8Bytes

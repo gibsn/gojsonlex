@@ -21,6 +21,7 @@ type jsonLexerTestCase struct {
 
 func TestJSONLexer(t *testing.T) {
 	testcases := []jsonLexerTestCase{
+		// tests for strings
 		{
 			input: `{"hello":"world"}`,
 			output: []jsonLexerOutputToken{
@@ -31,23 +32,6 @@ func TestJSONLexer(t *testing.T) {
 				{
 					"world",
 					LexerTokenTypeString,
-				},
-			},
-		},
-		{
-			input: `{"hello":{"0": 10}}`,
-			output: []jsonLexerOutputToken{
-				{
-					"hello",
-					LexerTokenTypeString,
-				},
-				{
-					"0",
-					LexerTokenTypeString,
-				},
-				{
-					float64(10),
-					LexerTokenTypeNumber,
 				},
 			},
 		},
@@ -81,6 +65,58 @@ func TestJSONLexer(t *testing.T) {
 				},
 			},
 		},
+		// tests for numbers
+		{
+			input: `{"hello":{"0": 10, "1": 11.0}}`,
+			output: []jsonLexerOutputToken{
+				{
+					"hello",
+					LexerTokenTypeString,
+				},
+				{
+					"0",
+					LexerTokenTypeString,
+				},
+				{
+					float64(10),
+					LexerTokenTypeNumber,
+				},
+				{
+					"1",
+					LexerTokenTypeString,
+				},
+				{
+					float64(11),
+					LexerTokenTypeNumber,
+				},
+			},
+		},
+		// {
+		// 	input: `{"hello":{"0": -10, "1": -11.0}}`,
+		// 	output: []jsonLexerOutputToken{
+		// 		{
+		// 			"hello",
+		// 			LexerTokenTypeString,
+		// 		},
+		// 		{
+		// 			"0",
+		// 			LexerTokenTypeString,
+		// 		},
+		// 		{
+		// 			float64(-10),
+		// 			LexerTokenTypeNumber,
+		// 		},
+		// 		{
+		// 			"1",
+		// 			LexerTokenTypeString,
+		// 		},
+		// 		{
+		// 			float64(-11),
+		// 			LexerTokenTypeNumber,
+		// 		},
+		// 	},
+		// },
+		// tests for special symbols
 		{
 			input: `{"ua": "\"\"Some\nWeird\tUA\"\""}`,
 			output: []jsonLexerOutputToken{
@@ -94,19 +130,21 @@ func TestJSONLexer(t *testing.T) {
 				},
 			},
 		},
+		// tests for Unicode
 		{
-			input: `{"ua": "SomeInternationalUA\U123A"}`,
+			input: `{"desc": "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u043f\u043e\u0447\u0442\u044b"}`,
 			output: []jsonLexerOutputToken{
 				{
-					"ua",
+					"desc",
 					LexerTokenTypeString,
 				},
 				{
-					"SomeInternationalUA\\U123A",
+					"проверка почты",
 					LexerTokenTypeString,
 				},
 			},
 		},
+		// tests for Null
 		{
 			input: `{"ua": Null}`,
 			output: []jsonLexerOutputToken{
@@ -133,6 +171,7 @@ func TestJSONLexer(t *testing.T) {
 				},
 			},
 		},
+		// tests for Bool
 		{
 			input: `{"isValid": true}`,
 			output: []jsonLexerOutputToken{
@@ -250,10 +289,11 @@ func TestJSONLexer(t *testing.T) {
 	}
 }
 
+// TODO test for invalid utf16 pair
 func TestJSONLexerFails(t *testing.T) {
 	testcases := []jsonLexerTestCase{
 		{
-			input: `{"hello":"\u123r"}`,
+			input: `{"hello":"\u12"}`,
 		},
 		{
 			input: `{"hello":"\a"}`,
