@@ -1,11 +1,13 @@
 # GoJSONLex
 
-`gojsonlex` is a drop in replacement for `encoding/json` lexer optimised for efficiency. `gojsonlex` is 2-3 times faster than `encoding/json` and requires memory only enough to buffer the longest token in the input.
+`gojsonlex` is a drop in replacement for `encoding/json` lexer (with `SkipDelims` set to `true`)
+optimised for efficiency. `gojsonlex` is 2-3 times faster than `encoding/json` and requires memory
+only enough to buffer the longest token in the input.
 
 # Motivation
 
 Let's consider a case when you want to parse the output of some tool that encodes binary data to one huge JSON dict:
-```
+```json
 {
   "bands": [
     {
@@ -29,7 +31,7 @@ Let's consider a case when you want to parse the output of some tool that encode
 
 Let's say "albums" can be arbitrary long, the whole JSON is 10GB, but you actually want to print out all "origin" values and don't care about the rest. You do not want to decode the whole JSON into one struct (like most JSON parsers do) since it can be huge. Luckily in this case you do not actually need to parse any arbitrary JSON, you are ok with a more narrow grammar. A parser for such a grammar could look like this:
 
-```
+```golang
 for {
 	currToken, err := lexer.Token()
 	if err != nil {
@@ -53,7 +55,7 @@ Ok, so now you need a JSON lexer. Some lexers that I checked did buffer a large 
 # Overview
 
 Example from the previous section could be implemented with `gojsonlex` like this:
-```
+```golang
 l, err := gojsonlex.NewJSONLexer(r)
 if err != nil {
 	// ...
@@ -87,7 +89,7 @@ for {
 In order to maintain zero allocations `Token()` will always return an unsafe string that is valid only until the next `Token()` call. You must make a deep copy (using `StringDeepCopy()`) of that string in case you may need it after the next `Token()` call.
 
 Though `gojsonlex.Token()` is faster than that from `encoding/json`, it sacfrifices performance in order to match the default interface. You may want to consider using `TokenFast()` to achieve the best performance (in exchange for more coding):
-```
+```golang
 for {
 	currToken, err := lexer.TokenFast()
 	if err != nil {
