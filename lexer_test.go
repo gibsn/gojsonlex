@@ -19,8 +19,6 @@ type jsonLexerTestCase struct {
 	skipDelims bool
 }
 
-// TODO tests for Null
-// TODO tests for Bool
 func TestJSONLexer(t *testing.T) {
 	testcases := []jsonLexerTestCase{
 		{
@@ -135,6 +133,58 @@ func TestJSONLexer(t *testing.T) {
 				},
 			},
 		},
+		{
+			input: `{"isValid": true}`,
+			output: []jsonLexerOutputToken{
+				{
+					"isValid",
+					LexerTokenTypeString,
+				},
+				{
+					true,
+					LexerTokenTypeBool,
+				},
+			},
+		},
+		{
+			input: `{"isValid": True}`,
+			output: []jsonLexerOutputToken{
+				{
+					"isValid",
+					LexerTokenTypeString,
+				},
+				{
+					true,
+					LexerTokenTypeBool,
+				},
+			},
+		},
+		{
+			input: `{"isValid": false}`,
+			output: []jsonLexerOutputToken{
+				{
+					"isValid",
+					LexerTokenTypeString,
+				},
+				{
+					false,
+					LexerTokenTypeBool,
+				},
+			},
+		},
+		{
+			input: `{"isValid": False}`,
+			output: []jsonLexerOutputToken{
+				{
+					"isValid",
+					LexerTokenTypeString,
+				},
+				{
+					false,
+					LexerTokenTypeBool,
+				},
+			},
+		},
 	}
 
 	for _, testcase := range testcases {
@@ -180,6 +230,13 @@ func TestJSONLexer(t *testing.T) {
 					break
 
 				}
+			case LexerTokenTypeNull:
+				if token != nil {
+					t.Errorf("testcase '%s': expected token '%v', got '%t'",
+						testcase.input, testcase.output[tokensFound].token, token)
+					break
+
+				}
 			}
 
 			tokensFound++
@@ -206,6 +263,13 @@ func TestJSONLexerFails(t *testing.T) {
 		},
 		{
 			input: `{"hello": Nuii}`,
+		},
+		{
+			input: `{"isValid": tru}`,
+		},
+		{
+
+			input: `{"isValid": folse}`,
 		},
 	}
 
@@ -246,6 +310,8 @@ const (
 	  "cells" : [
 		{ "name" : "event_id", "value" : 253 },
 		{ "name" : "ip", "value" : "5.61.233.11" },
+		{ "name" : "is_valid", "value" : true },
+		{ "name" : "session_id", "value" : null },
 		{ "name" : "args", "deletion_info" : { "marked_deleted" : "2020-05-06T12:57:14.193446Z", "local_delete_time" : "2020-05-06T12:57:14Z" } },
 		{ "name" : "args", "path" : [ "f" ], "value" : "fdevmail.openstacklocal" },
 		{ "name" : "args", "path" : [ "h" ], "value" : "internal-api.devmail.ru" },
