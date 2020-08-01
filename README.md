@@ -4,6 +4,10 @@
 optimised for efficiency. `gojsonlex` is 2-3 times faster than `encoding/json` and requires memory
 only enough to buffer the longest token in the input.
 
+# API Documentation
+
+TODO
+
 # Motivation
 
 Let's consider a case when you want to parse the output of some tool that encodes binary data to one huge JSON dict:
@@ -113,6 +117,12 @@ for {
 	}
 }
 ```
+
+# Examples
+Please refer to the 'examples' directory for examples of `gojsonlex` usage. Run `make examples` to build all examples.
+
+## stdinparser
+`stdinparser` is an example of simple utility that reads JSON from StdIn and dumps tokens to StdOut
 
 
 # Benchmarks
