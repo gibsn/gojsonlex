@@ -7,7 +7,7 @@ only enough to buffer the longest token in the input.
 # Motivation
 
 Let's consider a case when you want to parse the output of some tool that encodes binary data to one huge JSON dict:
-```json
+```
 {
   "bands": [
     {
