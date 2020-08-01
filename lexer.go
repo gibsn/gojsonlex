@@ -174,16 +174,47 @@ func (l *JSONLexer) processStateNumber(c byte) error {
 
 func (l *JSONLexer) processStateNull(c byte) error {
 	currPositionInToken := l.currPos - l.currTokenStart
+
+	if currPositionInToken == len("null") {
+		l.state = stateLexerSkipping
+		l.currTokenEnd = l.currPos
+		l.newTokenFound = true
+		return nil
+	}
+
 	expectedLiteral := rune("null"[currPositionInToken])
 
 	if unicode.ToLower(rune(c)) != expectedLiteral {
 		return fmt.Errorf("invalid literal '%c' while parsing 'Null' value", c)
 	}
 
-	if currPositionInToken == len("null")-1 {
+	return nil
+}
+
+func (l *JSONLexer) processStateBool(c byte) error {
+	firstCharOfToken := unicode.ToLower(rune(l.buf[l.currTokenStart]))
+	currPositionInToken := l.currPos - l.currTokenStart
+
+	var expectedToken string
+
+	switch firstCharOfToken {
+	case 't':
+		expectedToken = "true"
+	case 'f':
+		expectedToken = "false"
+	}
+
+	if currPositionInToken == len(expectedToken) {
 		l.state = stateLexerSkipping
 		l.currTokenEnd = l.currPos
 		l.newTokenFound = true
+		return nil
+	}
+
+	expectedLiteral := rune(expectedToken[currPositionInToken])
+
+	if unicode.ToLower(rune(c)) != expectedLiteral {
+		return fmt.Errorf("invalid literal '%c' while parsing bool value", c)
 	}
 
 	return nil
@@ -202,7 +233,7 @@ func (l *JSONLexer) feed(c byte) error {
 	case stateLexerNumber:
 		return l.processStateNumber(c)
 	case stateLexerBool:
-		panic("parsing bool is not implemented")
+		return l.processStateBool(c)
 	case stateLexerNull:
 		return l.processStateNull(c)
 	}
@@ -233,7 +264,7 @@ func (l *JSONLexer) currTokenAsBool() (bool, error) {
 	if unicode.ToLower(rune(l.buf[l.currTokenStart])) == 't' {
 		return true, nil
 	}
-	if unicode.ToLower(rune(l.buf[l.currTokenStart])) == 'n' {
+	if unicode.ToLower(rune(l.buf[l.currTokenStart])) == 'f' {
 		return false, nil
 	}
 
@@ -251,7 +282,8 @@ func (l *JSONLexer) currToken() (TokenGeneric, error) {
 		n, err := l.currTokenAsNumber()
 		return newTokenGenericFromNumber(n), err
 	case LexerTokenTypeBool:
-		break
+		b, err := l.currTokenAsBool()
+		return newTokenGenericFromBool(b), err
 	case LexerTokenTypeNull:
 		return newTokenGenericFromNull(), nil
 	}
