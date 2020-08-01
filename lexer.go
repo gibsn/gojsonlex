@@ -335,7 +335,8 @@ func (l *JSONLexer) shutdown() error {
 	return io.EOF
 }
 
-// Token returns the next JSON token. All strings returned by Token are guaranteed to be valid
+// Token returns the next JSON token, all delimiters are skipped. Token will return io.EOF when
+// all input has been exhausted.  All strings returned by Token are guaranteed to be valid
 // until the next Token call, otherwise you MUST make a deep copy.
 func (l *JSONLexer) Token() (json.Token, error) {
 	t, err := l.TokenFast()
