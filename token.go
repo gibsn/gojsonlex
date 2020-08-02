@@ -51,69 +51,79 @@ func unsafeStringFromBytes(arr []byte) string {
 }
 
 // TODO comment
-func unescapeBytesInplace(data []byte) ([]byte, error) {
+func unescapeBytesInplace(input []byte) ([]byte, error) {
 	// because presentation of escaped symbols in the
 	// input and output arrays may differ in size
-	offset := 0
+	writeIter := 0
 
-	pendingEscapedSymbol := false
-	pendingUnicodeBytes := -1
+	var (
+		pendingEscapedSymbol bool
+		pendingUnicodeBytes  byte
+		err                  error
+	)
 
-	unescaped := make([]byte, 0, utf8.UTFMax)
+	unescapedBuf := make([]byte, 0, utf8.UTFMax)
 
-	for i, r := range data {
+	for i, r := range input {
 		switch {
-		case pendingUnicodeBytes == 0: // processing the last byte of unicode sequence
-			runeLen, err := UTF16ToUTF8Bytes(data[i-unicodeSequenceLength:i], unescaped[:])
-			if err != nil {
-				return nil, fmt.Errorf("could not unescape string '%s': %w", string(data), err)
-			}
-
-			offset += unicodeSequenceLength - runeLen
-			pendingUnicodeBytes = -1
 		case pendingUnicodeBytes > 0:
 			pendingUnicodeBytes--
-			continue
+
+			if pendingUnicodeBytes != 0 {
+				continue
+			}
+
+			// processing the last byte of unicode sequence
+			utf16Sequence := input[i-unicodeSequenceLength+1 : i+1]
+
+			unescapedBuf, err = UTF16ToUTF8Bytes(utf16Sequence, unescapedBuf[:])
+			if err != nil {
+				return nil, fmt.Errorf("could not unescape string '%s': %w", string(input), err)
+			}
 		case pendingEscapedSymbol:
 			pendingEscapedSymbol = false
 
 			switch r {
 			case 'u', 'U':
-				offset++
 				pendingUnicodeBytes = unicodeSequenceLength
 				continue
 			case 'n':
-				unescaped = append(unescaped, '\n')
+				unescapedBuf = append(unescapedBuf, '\n')
 			case 'r':
-				unescaped = append(unescaped, '\r')
+				unescapedBuf = append(unescapedBuf, '\r')
 			case 't':
-				unescaped = append(unescaped, '\t')
+				unescapedBuf = append(unescapedBuf, '\t')
 			case 'b':
-				unescaped = append(unescaped, '\b')
+				unescapedBuf = append(unescapedBuf, '\b')
 			case 'f':
-				unescaped = append(unescaped, '\f')
+				unescapedBuf = append(unescapedBuf, '\f')
 			case '\\':
-				unescaped = append(unescaped, '\\')
+				unescapedBuf = append(unescapedBuf, '\\')
 			case '/':
-				unescaped = append(unescaped, '/')
+				unescapedBuf = append(unescapedBuf, '/')
 			case '"':
-				unescaped = append(unescaped, '"')
+				unescapedBuf = append(unescapedBuf, '"')
 			default:
-				// return 0
+				return nil, fmt.Errorf("invalid escape sequence \\%c", r)
 			}
 		case r == '\\':
 			pendingEscapedSymbol = true
-			offset++
 			continue
 		default:
-			unescaped = append(unescaped, r)
+			unescapedBuf = append(unescapedBuf, r)
 		}
 
-		copy(data[i-offset:], unescaped)
-		unescaped = unescaped[:0]
+		copy(input[writeIter:], unescapedBuf)
+
+		writeIter += len(unescapedBuf)
+		unescapedBuf = unescapedBuf[:0]
 	}
 
-	return data[:len(data)-offset], nil
+	if pendingEscapedSymbol || pendingUnicodeBytes > 0 {
+		return nil, fmt.Errorf("incomplete escape sequence %s", string(input[writeIter:]))
+	}
+
+	return input[:writeIter], nil
 }
 
 // StringDeepCopy creates a copy of the given string with it's own underlying bytearray.
@@ -154,29 +164,25 @@ func IsHexDigit(c rune) bool {
 	return false
 }
 
-// UTF16ToUTF8Bytes returns the length of the output rune in bytes and error if any
-func UTF16ToUTF8Bytes(in []byte, out []byte) (int, error) {
+// UTF16ToUTF8Bytes returns the shrinked output buffer and error if any
+func UTF16ToUTF8Bytes(in []byte, out []byte) ([]byte, error) {
 	if len(in) != unicodeSequenceLength {
-		return 0, fmt.Errorf("unicode sequence must consist of exactly %d symbols",
+		return nil, fmt.Errorf("unicode sequence must consist of exactly %d symbols",
 			unicodeSequenceLength,
 		)
 	}
 
-	in1, err := strconv.ParseUint(unsafeStringFromBytes(in[:2]), 16, 16)
+	inAsUint, err := strconv.ParseUint(unsafeStringFromBytes(in[:4]), 16, 16)
 	if err != nil {
-		return 0, fmt.Errorf("invalid unicode sequence %c%c%c%c", in[0], in[1], in[2], in[3])
-	}
-	in2, err := strconv.ParseUint(unsafeStringFromBytes(in[2:]), 16, 16)
-	if err != nil {
-		return 0, fmt.Errorf("invalid unicode sequence %c%c%c%c", in[0], in[1], in[2], in[3])
+		return nil, fmt.Errorf("invalid unicode sequence %c%c%c%c", in[0], in[1], in[2], in[3])
 	}
 
-	outRune := utf16.DecodeRune(rune(in1), rune(in2))
+	outRune := utf16.Decode([]uint16{uint16(inAsUint)})[0]
 	if outRune == unicode.ReplacementChar {
-		return 0, fmt.Errorf("invalid utf16 surrogate pair %x:%x", in1, in2)
+		return nil, fmt.Errorf("invalid unicode sequence %c%c%c%c", in[0], in[1], in[2], in[3])
 	}
 
-	n := utf8.EncodeRune(out, outRune)
+	n := utf8.EncodeRune(out[:cap(out)], outRune)
 
-	return n, nil
+	return out[:n], nil
 }

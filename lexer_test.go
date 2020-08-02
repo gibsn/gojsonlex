@@ -139,7 +139,7 @@ func TestJSONLexer(t *testing.T) {
 					LexerTokenTypeString,
 				},
 				{
-					"проверка почты",
+					"Проверка почты",
 					LexerTokenTypeString,
 				},
 			},
@@ -289,7 +289,6 @@ func TestJSONLexer(t *testing.T) {
 	}
 }
 
-// TODO test for invalid utf16 pair
 func TestJSONLexerFails(t *testing.T) {
 	testcases := []jsonLexerTestCase{
 		{

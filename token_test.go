@@ -2,6 +2,7 @@ package gojsonlex
 
 import (
 	"testing"
+	"unicode/utf8"
 )
 
 type stringDeepCopyTestCase struct {
@@ -96,12 +97,20 @@ func TestUnescapeBytesInplace(t *testing.T) {
 
 func TestUnescapeBytesInplaceFails(t *testing.T) {
 	testcases := []unescapeBytesInplaceTestCase{
-		// {
-		// 	input: []byte(""),
-		// },
+		{
+			input: []byte("\\"),
+		},
+		{
+			input: []byte("\\a"),
+		},
+		// not enough symbols
+		{
+			input: []byte("\\u043"),
+		},
 	}
 	for _, testcase := range testcases {
 		currIn := string(testcase.input) // making a copy
+
 		_, err := unescapeBytesInplace(testcase.input)
 		if err == nil {
 			t.Errorf("testcase '%s': must have failed", currIn)
@@ -109,5 +118,56 @@ func TestUnescapeBytesInplaceFails(t *testing.T) {
 	}
 }
 
+type utf16ToUTF8BytesTestcase struct {
+	input  []byte
+	output string
+}
+
+func TestUTF16ToUTF8Bytes(t *testing.T) {
+	testcases := []utf16ToUTF8BytesTestcase{
+		{
+			input:  []byte("041f"),
+			output: "П",
+		},
+	}
+	for _, testcase := range testcases {
+		output := make([]byte, 0, utf8.UTFMax)
+
+		output, err := UTF16ToUTF8Bytes(testcase.input, output[:])
+		if err != nil {
+			t.Errorf("testcase '%s': %v", testcase.input, err)
+			continue
+		}
+
+		if string(output) != testcase.output {
+			t.Errorf("testcase '%s': expected '%s', got '%s'",
+				testcase.input, testcase.output, output)
+			continue
+		}
+	}
+}
+
+func TestUTF16ToUTF8BytesFails(t *testing.T) {
+	testcases := []utf16ToUTF8BytesTestcase{
+		{
+			input:  []byte(""),
+			output: "",
+		},
+		// not enough symbols
+		{
+			input:  []byte("\\u043"),
+			output: "",
+		},
+	}
+	for _, testcase := range testcases {
+		var output [utf8.UTFMax]byte
+
+		_, err := UTF16ToUTF8Bytes(testcase.input, output[:])
+		if err == nil {
+			t.Errorf("testcase '%s': must have failed", testcase.input)
+			continue
+		}
+	}
+}
+
 // TODO tests for IsDelim
-// TODO tests for UTF16ToUTF8Bytes
