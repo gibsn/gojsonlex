@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strconv"
 	"unicode"
-	"unicode/utf16"
+	// "unicode/utf16"
 	"unicode/utf8"
 	"unsafe"
 )
@@ -177,10 +177,12 @@ func UTF16ToUTF8Bytes(in []byte, out []byte) ([]byte, error) {
 		return nil, fmt.Errorf("invalid unicode sequence %c%c%c%c", in[0], in[1], in[2], in[3])
 	}
 
-	outRune := utf16.Decode([]uint16{uint16(inAsUint)})[0]
-	if outRune == unicode.ReplacementChar {
-		return nil, fmt.Errorf("invalid unicode sequence %c%c%c%c", in[0], in[1], in[2], in[3])
-	}
+	// TODO wtf is surrogate pair
+	outRune := rune(inAsUint)
+	// outRune := utf16.Decode([]uint16{uint16(inAsUint)})[0]
+	// if outRune == unicode.ReplacementChar {
+	// 	return nil, fmt.Errorf("invalid unicode sequence %c%c%c%c", in[0], in[1], in[2], in[3])
+	// }
 
 	n := utf8.EncodeRune(out[:cap(out)], outRune)
 

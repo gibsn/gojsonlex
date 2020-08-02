@@ -147,6 +147,7 @@ func TestUTF16ToUTF8Bytes(t *testing.T) {
 	}
 }
 
+// TODO tests for wrong surrogate pair
 func TestUTF16ToUTF8BytesFails(t *testing.T) {
 	testcases := []utf16ToUTF8BytesTestcase{
 		{

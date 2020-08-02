@@ -10,6 +10,7 @@ test:
 	go test .
 
 bench:
+	# go test -bench=. -benchmem -memprofile=out.mem
 	go test -bench=. -benchmem
 
 clean:

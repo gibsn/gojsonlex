@@ -356,7 +356,8 @@ const (
 		{ "name" : "args", "path" : [ "h" ], "value" : "internal-api.devmail.ru" },
 		{ "name" : "args", "path" : [ "ip" ], "value" : "127.0.0.1" },
 		{ "name" : "args", "path" : [ "rid" ], "value" : "8c28ca1055" },
-		{ "name" : "args", "path" : [ "ua" ], "value" : "\"Go-http-client/1.1\"" }
+		{ "name" : "args", "path" : [ "ua" ], "value" : "\"Go-http-client/1.1\"" },
+		{ "desc": "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u043f\u043e\u0447\u0442\u044b"}
 	  ]
 	}`
 )
