@@ -1,8 +1,8 @@
 # GoJSONLex
 
-`gojsonlex` is a drop in replacement for `encoding/json` lexer (with `SkipDelims` set to `true`)
-optimised for efficiency. `gojsonlex` is 2-3 times faster than `encoding/json` and requires memory
-only enough to buffer the longest token in the input.
+`gojsonlex` is a drop in replacement for `encoding/json` lexer optimised for efficiency. `gojsonlex` is 2-3 times
+faster than `encoding/json` and requires memory only enough to buffer the longest token in the input. Currently
+`gojsonlex` skips all delimiters (this behaviour will be changed).
 
 # API Documentation
 
