@@ -135,5 +135,16 @@ func IsHexDigit(c rune) bool {
 
 // CanAppearInNUmber reports whether the given rune can appear in a JSON number
 func CanAppearInNumber(c rune) bool {
-	return unicode.IsDigit(c) || c == '-' || c == '.'
+	switch {
+	case unicode.IsDigit(c):
+		fallthrough
+	case c == '-', c == '+':
+		fallthrough
+	case c == '.':
+		fallthrough
+	case c == 'e', c == 'E':
+		return true
+	}
+
+	return false
 }

@@ -101,6 +101,10 @@ func TestCanAppearInNumber(t *testing.T) {
 		{'9', true},
 		{'-', true},
 		{'.', true},
+		{'+', true},
+		{'e', true},
+		{'E', true},
+		{'е', false}, // russian 'е'
 		{'*', false},
 	}
 
