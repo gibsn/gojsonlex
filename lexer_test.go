@@ -199,12 +199,16 @@ func TestJSONLexer(t *testing.T) {
 			},
 		},
 		{
-			input: `{"delta": 3.14, "temperature": -52}`,
+			input: `{"delta": 3.14, "temperature": -52, "distance": 1.57e+10, "size": 1.2E-10}`,
 			output: []jsonLexerOutputToken{
 				{"delta", LexerTokenTypeString},
 				{float64(3.14), LexerTokenTypeNumber},
 				{"temperature", LexerTokenTypeString},
 				{float64(-52), LexerTokenTypeNumber},
+				{"distance", LexerTokenTypeString},
+				{float64(1.57e10), LexerTokenTypeNumber},
+				{"size", LexerTokenTypeString},
+				{float64(1.2e-10), LexerTokenTypeNumber},
 			},
 		},
 		{
@@ -304,6 +308,10 @@ func TestJSONLexerFails(t *testing.T) {
 		},
 		{`{"delta": 3.1.4}`, nil, false},
 		{`{"temperature": 5-2}`, nil, false},
+		{`{"distance": 1.57+10}`, nil, false},
+		{`{"size": 1.2e*10}`, nil, false},
+		{`{"distance": 1.57+e10}`, nil, false},
+		{`{"size": 1.210-e}`, nil, false},
 	}
 
 	for _, testcase := range testcases {
@@ -347,6 +355,7 @@ const (
 		{ "name" : "session_id", "value" : null },
 		{ "name" : "delta", "value" : 3.14 },
 		{ "name" : "temperature", "value" : -52 },
+		{ "name" : "distance", "value" : 1.57e10 },
 		{ "name" : "args", "deletion_info" : { "marked_deleted" : "2020-05-06T12:57:14.193446Z", "local_delete_time" : "2020-05-06T12:57:14Z" } },
 		{ "name" : "args", "path" : [ "f" ], "value" : "fdevmail.openstacklocal" },
 		{ "name" : "args", "path" : [ "h" ], "value" : "internal-api.devmail.ru" },
