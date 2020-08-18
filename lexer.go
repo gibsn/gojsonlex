@@ -90,7 +90,7 @@ func (l *JSONLexer) processStateSkipping(c byte) error {
 		l.state = stateLexerString
 		l.currTokenType = LexerTokenTypeString
 		l.currTokenStart = l.currPos
-	case unicode.IsDigit(rune(c)):
+	case CanAppearInNumber(rune(c)):
 		l.state = stateLexerNumber
 		l.currTokenType = LexerTokenTypeNumber
 		l.currTokenStart = l.currPos

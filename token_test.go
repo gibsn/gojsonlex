@@ -90,4 +90,28 @@ func TestUnescapeBytesInplace(t *testing.T) {
 	}
 }
 
+type canAppearInNumberTestCase struct {
+	input  rune
+	output bool
+}
+
+func TestCanAppearInNumber(t *testing.T) {
+	testcases := []canAppearInNumberTestCase{
+		{'0', true},
+		{'9', true},
+		{'-', true},
+		{'.', true},
+		{'*', false},
+	}
+
+	for _, testcase := range testcases {
+		currOut := CanAppearInNumber(testcase.input)
+
+		if testcase.output != currOut {
+			t.Errorf("testcase '%c': got '%t', expected '%t'",
+				testcase.input, currOut, testcase.output)
+		}
+	}
+}
+
 // TODO tests for IsDelim
