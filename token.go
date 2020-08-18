@@ -119,7 +119,7 @@ func IsValidEscapedSymbol(c rune) bool {
 	return false
 }
 
-// IsHexDigit reports wheter the given rune is a valid hex digit
+// IsHexDigit reports whether the given rune is a valid hex digit
 func IsHexDigit(c rune) bool {
 	switch {
 	case unicode.IsDigit(c):
@@ -131,4 +131,9 @@ func IsHexDigit(c rune) bool {
 	}
 
 	return false
+}
+
+// CanAppearInNUmber reports whether the given rune can appear in a JSON number
+func CanAppearInNumber(c rune) bool {
+	return unicode.IsDigit(c) || c == '-' || c == '.'
 }

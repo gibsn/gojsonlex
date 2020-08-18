@@ -185,6 +185,38 @@ func TestJSONLexer(t *testing.T) {
 				},
 			},
 		},
+		{
+			input: `{"isValid": False}`,
+			output: []jsonLexerOutputToken{
+				{
+					"isValid",
+					LexerTokenTypeString,
+				},
+				{
+					false,
+					LexerTokenTypeBool,
+				},
+			},
+		},
+		{
+			input: `{"delta": 3.14, "temperature": -52}`,
+			output: []jsonLexerOutputToken{
+				{"delta", LexerTokenTypeString},
+				{float64(3.14), LexerTokenTypeNumber},
+				{"temperature", LexerTokenTypeString},
+				{float64(-52), LexerTokenTypeNumber},
+			},
+		},
+		{
+			// should not be supported according to json.org
+			input: `{"delta1": .314, "delta2": 314.}`,
+			output: []jsonLexerOutputToken{
+				{"delta1", LexerTokenTypeString},
+				{float64(0.314), LexerTokenTypeNumber},
+				{"delta2", LexerTokenTypeString},
+				{float64(314.), LexerTokenTypeNumber},
+			},
+		},
 	}
 
 	for _, testcase := range testcases {
@@ -268,9 +300,10 @@ func TestJSONLexerFails(t *testing.T) {
 			input: `{"isValid": tru}`,
 		},
 		{
-
 			input: `{"isValid": folse}`,
 		},
+		{`{"delta": 3.1.4}`, nil, false},
+		{`{"temperature": 5-2}`, nil, false},
 	}
 
 	for _, testcase := range testcases {
@@ -312,6 +345,8 @@ const (
 		{ "name" : "ip", "value" : "5.61.233.11" },
 		{ "name" : "is_valid", "value" : true },
 		{ "name" : "session_id", "value" : null },
+		{ "name" : "delta", "value" : 3.14 },
+		{ "name" : "temperature", "value" : -52 },
 		{ "name" : "args", "deletion_info" : { "marked_deleted" : "2020-05-06T12:57:14.193446Z", "local_delete_time" : "2020-05-06T12:57:14Z" } },
 		{ "name" : "args", "path" : [ "f" ], "value" : "fdevmail.openstacklocal" },
 		{ "name" : "args", "path" : [ "h" ], "value" : "internal-api.devmail.ru" },
