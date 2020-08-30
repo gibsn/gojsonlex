@@ -130,4 +130,56 @@ func TestUnescapeBytesInplaceFails(t *testing.T) {
 	}
 }
 
+type hexBytesToUintTestcase struct {
+	input  []byte
+	output uint64
+}
+
+func TestHexBytesToUint(t *testing.T) {
+	testcases := []hexBytesToUintTestcase{
+		{
+			input:  []byte("000f"),
+			output: 15,
+		},
+		{
+			input:  []byte("003F"),
+			output: 63,
+		},
+		{
+			input:  []byte("043f"),
+			output: 1087,
+		},
+		{
+			input:  []byte("543f"),
+			output: 21567,
+		},
+	}
+	for _, testcase := range testcases {
+		out, err := HexBytesToUint(testcase.input)
+		if err != nil {
+			t.Errorf("testcase '%s': %v", string(testcase.input), err)
+			continue
+		}
+
+		if testcase.output != out {
+			t.Errorf("testcase '%s': got '%d', expected '%d'",
+				testcase.input, out, testcase.output)
+		}
+	}
+}
+
+func TestHexBytesToUintFails(t *testing.T) {
+	testcases := []unescapeBytesInplaceTestCase{
+		{
+			input: []byte("043z"),
+		},
+	}
+	for _, testcase := range testcases {
+		_, err := HexBytesToUint(testcase.input)
+		if err == nil {
+			t.Errorf("testcase '%s': must have failed", testcase.input)
+		}
+	}
+}
+
 // TODO tests for IsDelim

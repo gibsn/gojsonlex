@@ -3,7 +3,6 @@ package gojsonlex
 import (
 	"fmt"
 	"reflect"
-	"strconv"
 	"unicode"
 	"unicode/utf16"
 	"unicode/utf8"
@@ -86,7 +85,7 @@ func unescapeBytesInplace(input []byte) ([]byte, error) {
 			// processing the last byte of unicode sequence
 			utf16Sequence := input[readIter+1-utf16SequenceLength : readIter+1]
 
-			runeAsUint, err := strconv.ParseUint(unsafeStringFromBytes(utf16Sequence), 16, 16)
+			runeAsUint, err := HexBytesToUint(utf16Sequence)
 			if err != nil {
 				return nil, fmt.Errorf("invalid unicode sequence \\u%s", utf16Sequence)
 			}
@@ -161,8 +160,6 @@ func unescapeBytesInplace(input []byte) ([]byte, error) {
 			input[writeIter+i] = unescapedBuf[i]
 		}
 
-		// copy(input[writeIter:], unescapedBuf)
-
 		writeIter += len(unescapedBuf)
 		unescapedBuf = unescapedBuf[:0]
 	}
@@ -184,43 +181,6 @@ func unescapeBytesInplace(input []byte) ([]byte, error) {
 	return input[:writeIter], nil
 }
 
-// unescapeUnicode expects the input format to be as (hex_digit){4}(\u(hex_digit){4})?.
-// 'in' then is unescaped to 'out' by being converting to UTF-8 bytes.
-// func unescapeUnicode(in []byte, out []byte) (int, int, error) {
-// 	writeIter := 0
-// 	readIter := 0
-//
-// 	pendingDigits := utf16SequenceLength
-// 	isASurrogatePair := false
-//
-// 	for c, i := range in {
-// 		readIter++
-//
-// 		switch {
-// 		case pendingDigits > 0:
-// 			pendingDigits--
-// 			if pendingDigits != 0 {
-// 				continue
-// 			}
-//
-// 			seqPoint, err := strconv.ParseUint(unsafeStringFromBytes(in[:4]), 16, 16)
-// 			if err != nil {
-// 				return 0, 0, fmt.Errorf("invalid unicode sequence \\u%s", in[:readIter])
-// 			}
-//
-// 			if utf16.IsSurrogate(rune(seqPoint)) {
-// 				isASurrogatePair = true
-// 			}
-// 		}
-// 		// case c == '\\':
-// 		// 	pendingUSymbol
-// 	}
-// 	for i := 0; i < utf16SequenceLength; i++ {
-// 		readIter++
-// 	}
-//
-// }
-//
 // StringDeepCopy creates a copy of the given string with it's own underlying bytearray.
 // Use this function to make a copy of string returned by Token()
 func StringDeepCopy(s string) string {
@@ -259,27 +219,25 @@ func IsHexDigit(c rune) bool {
 	return false
 }
 
-// UTF16ToUTF8Bytes returns the shrinked output buffer and error if any
-// func UTF16ToUTF8Bytes(in []byte, out []byte) ([]byte, error) {
-// 	if len(in) != unicodeSequenceLength {
-// 		return nil, fmt.Errorf("unicode sequence must consist of exactly %d symbols",
-// 			unicodeSequenceLength,
-// 		)
-// 	}
-//
-// 	inAsUint, err := strconv.ParseUint(unsafeStringFromBytes(in[:4]), 16, 16)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("invalid unicode sequence %c%c%c%c", in[0], in[1], in[2], in[3])
-// 	}
-//
-// 	// TODO wtf is surrogate pair
-// 	outRune := rune(inAsUint)
-// 	// outRune := utf16.Decode([]uint16{uint16(inAsUint)})[0]
-// 	// if outRune == unicode.ReplacementChar {
-// 	// 	return nil, fmt.Errorf("invalid unicode sequence %c%c%c%c", in[0], in[1], in[2], in[3])
-// 	// }
-//
-// 	n := utf8.EncodeRune(out[:cap(out)], outRune)
-//
-// 	return out[:n], nil
-// }
+func HexBytesToUint(in []byte) (result uint64, err error) {
+	for _, c := range in {
+		result *= 0x10
+
+		var v byte
+
+		switch {
+		case '0' <= c && c <= '9':
+			v = c - '0'
+		case 'a' <= c && c <= 'f':
+			v = c - 'a' + 10
+		case 'A' <= c && c <= 'F':
+			v = c - 'A' + 10
+		default:
+			return 0, fmt.Errorf("'%s' is not a hex number", string(in))
+		}
+
+		result += uint64(v)
+	}
+
+	return result, nil
+}
