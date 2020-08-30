@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strconv"
 	"unicode"
-	// "unicode/utf16"
+	"unicode/utf16"
 	"unicode/utf8"
 	"unsafe"
 )
@@ -21,7 +21,8 @@ const (
 )
 
 const (
-	unicodeSequenceLength = 4
+	utf16SequenceLength  = 4 // in digits
+	utf16MaxWordsForRune = 2
 )
 
 func (t TokenType) String() string {
@@ -52,40 +53,69 @@ func unsafeStringFromBytes(arr []byte) string {
 
 // TODO comment
 func unescapeBytesInplace(input []byte) ([]byte, error) {
-	// because presentation of escaped symbols in the
-	// input and output arrays may differ in size
-	writeIter := 0
-
+	// state modificators
 	var (
 		pendingEscapedSymbol bool
 		pendingUnicodeBytes  byte
-		err                  error
+	)
+
+	// since in UTF-16 rune may be encoded by either 1 or 2 words we
+	// may have to remember the previous word
+	var (
+		pendingSecondUTF16SeqPoint bool
+		firstUTF16SeqPoint         rune
+	)
+
+	var (
+		writeIter int
+		readIter  int
 	)
 
 	unescapedBuf := make([]byte, 0, utf8.UTFMax)
 
-	for i, r := range input {
+	for ; readIter < len(input); readIter++ {
+		c := input[readIter]
+
 		switch {
 		case pendingUnicodeBytes > 0:
 			pendingUnicodeBytes--
-
 			if pendingUnicodeBytes != 0 {
 				continue
 			}
 
 			// processing the last byte of unicode sequence
-			utf16Sequence := input[i-unicodeSequenceLength+1 : i+1]
+			utf16Sequence := input[readIter+1-utf16SequenceLength : readIter+1]
 
-			unescapedBuf, err = UTF16ToUTF8Bytes(utf16Sequence, unescapedBuf[:])
+			runeAsUint, err := strconv.ParseUint(unsafeStringFromBytes(utf16Sequence), 16, 16)
 			if err != nil {
-				return nil, fmt.Errorf("could not unescape string '%s': %w", string(input), err)
+				return nil, fmt.Errorf("invalid unicode sequence \\u%s", utf16Sequence)
 			}
+
+			outRune := rune(runeAsUint)
+
+			if utf16.IsSurrogate(outRune) && !pendingSecondUTF16SeqPoint {
+				pendingSecondUTF16SeqPoint = true
+				firstUTF16SeqPoint = outRune
+				continue
+			}
+
+			if pendingSecondUTF16SeqPoint { // then we got a second elem and can decode now
+				outRune = utf16.DecodeRune(firstUTF16SeqPoint, outRune)
+				if outRune == unicode.ReplacementChar {
+					return nil, fmt.Errorf("invalid surrogate pair %x%x", firstUTF16SeqPoint, outRune)
+				}
+
+				pendingSecondUTF16SeqPoint = false
+			}
+
+			n := utf8.EncodeRune(unescapedBuf[:cap(unescapedBuf)], outRune)
+			unescapedBuf = unescapedBuf[:n]
 		case pendingEscapedSymbol:
 			pendingEscapedSymbol = false
 
-			switch r {
+			switch c {
 			case 'u', 'U':
-				pendingUnicodeBytes = unicodeSequenceLength
+				pendingUnicodeBytes = utf16SequenceLength
 				continue
 			case 'n':
 				unescapedBuf = append(unescapedBuf, '\n')
@@ -104,13 +134,27 @@ func unescapeBytesInplace(input []byte) ([]byte, error) {
 			case '"':
 				unescapedBuf = append(unescapedBuf, '"')
 			default:
-				return nil, fmt.Errorf("invalid escape sequence \\%c", r)
+				return nil, fmt.Errorf("invalid escape sequence \\%c", c)
 			}
-		case r == '\\':
+		case c == '\\':
 			pendingEscapedSymbol = true
 			continue
 		default:
-			unescapedBuf = append(unescapedBuf, r)
+			unescapedBuf = append(unescapedBuf, c)
+		}
+
+		if pendingSecondUTF16SeqPoint {
+			return nil, fmt.Errorf(
+				"missing second sequence point for %s",
+				string(input[writeIter:readIter]),
+			)
+		}
+
+		if pendingEscapedSymbol || pendingUnicodeBytes > 0 {
+			return nil, fmt.Errorf(
+				"incomplete escape sequence %s",
+				string(input[writeIter:readIter]),
+			)
 		}
 
 		copy(input[writeIter:], unescapedBuf)
@@ -119,13 +163,60 @@ func unescapeBytesInplace(input []byte) ([]byte, error) {
 		unescapedBuf = unescapedBuf[:0]
 	}
 
+	if pendingSecondUTF16SeqPoint {
+		return nil, fmt.Errorf(
+			"missing second sequence point for %s",
+			string(input[writeIter:readIter]),
+		)
+	}
+
 	if pendingEscapedSymbol || pendingUnicodeBytes > 0 {
-		return nil, fmt.Errorf("incomplete escape sequence %s", string(input[writeIter:]))
+		return nil, fmt.Errorf(
+			"incomplete escape sequence %s",
+			string(input[writeIter:readIter]),
+		)
 	}
 
 	return input[:writeIter], nil
 }
 
+// unescapeUnicode expects the input format to be as (hex_digit){4}(\u(hex_digit){4})?.
+// 'in' then is unescaped to 'out' by being converting to UTF-8 bytes.
+// func unescapeUnicode(in []byte, out []byte) (int, int, error) {
+// 	writeIter := 0
+// 	readIter := 0
+//
+// 	pendingDigits := utf16SequenceLength
+// 	isASurrogatePair := false
+//
+// 	for c, i := range in {
+// 		readIter++
+//
+// 		switch {
+// 		case pendingDigits > 0:
+// 			pendingDigits--
+// 			if pendingDigits != 0 {
+// 				continue
+// 			}
+//
+// 			seqPoint, err := strconv.ParseUint(unsafeStringFromBytes(in[:4]), 16, 16)
+// 			if err != nil {
+// 				return 0, 0, fmt.Errorf("invalid unicode sequence \\u%s", in[:readIter])
+// 			}
+//
+// 			if utf16.IsSurrogate(rune(seqPoint)) {
+// 				isASurrogatePair = true
+// 			}
+// 		}
+// 		// case c == '\\':
+// 		// 	pendingUSymbol
+// 	}
+// 	for i := 0; i < utf16SequenceLength; i++ {
+// 		readIter++
+// 	}
+//
+// }
+//
 // StringDeepCopy creates a copy of the given string with it's own underlying bytearray.
 // Use this function to make a copy of string returned by Token()
 func StringDeepCopy(s string) string {
@@ -165,26 +256,26 @@ func IsHexDigit(c rune) bool {
 }
 
 // UTF16ToUTF8Bytes returns the shrinked output buffer and error if any
-func UTF16ToUTF8Bytes(in []byte, out []byte) ([]byte, error) {
-	if len(in) != unicodeSequenceLength {
-		return nil, fmt.Errorf("unicode sequence must consist of exactly %d symbols",
-			unicodeSequenceLength,
-		)
-	}
-
-	inAsUint, err := strconv.ParseUint(unsafeStringFromBytes(in[:4]), 16, 16)
-	if err != nil {
-		return nil, fmt.Errorf("invalid unicode sequence %c%c%c%c", in[0], in[1], in[2], in[3])
-	}
-
-	// TODO wtf is surrogate pair
-	outRune := rune(inAsUint)
-	// outRune := utf16.Decode([]uint16{uint16(inAsUint)})[0]
-	// if outRune == unicode.ReplacementChar {
-	// 	return nil, fmt.Errorf("invalid unicode sequence %c%c%c%c", in[0], in[1], in[2], in[3])
-	// }
-
-	n := utf8.EncodeRune(out[:cap(out)], outRune)
-
-	return out[:n], nil
-}
+// func UTF16ToUTF8Bytes(in []byte, out []byte) ([]byte, error) {
+// 	if len(in) != unicodeSequenceLength {
+// 		return nil, fmt.Errorf("unicode sequence must consist of exactly %d symbols",
+// 			unicodeSequenceLength,
+// 		)
+// 	}
+//
+// 	inAsUint, err := strconv.ParseUint(unsafeStringFromBytes(in[:4]), 16, 16)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("invalid unicode sequence %c%c%c%c", in[0], in[1], in[2], in[3])
+// 	}
+//
+// 	// TODO wtf is surrogate pair
+// 	outRune := rune(inAsUint)
+// 	// outRune := utf16.Decode([]uint16{uint16(inAsUint)})[0]
+// 	// if outRune == unicode.ReplacementChar {
+// 	// 	return nil, fmt.Errorf("invalid unicode sequence %c%c%c%c", in[0], in[1], in[2], in[3])
+// 	// }
+//
+// 	n := utf8.EncodeRune(out[:cap(out)], outRune)
+//
+// 	return out[:n], nil
+// }
