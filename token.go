@@ -65,14 +65,9 @@ func unescapeBytesInplace(input []byte) ([]byte, error) {
 		firstUTF16SeqPoint         rune
 	)
 
-	var (
-		writeIter int
-		readIter  int
-	)
+	var writeIter int
 
-	for ; readIter < len(input); readIter++ {
-		c := input[readIter]
-
+	for readIter, c := range input {
 		switch {
 		case pendingUnicodeBytes > 0:
 			pendingUnicodeBytes--
@@ -158,10 +153,7 @@ func unescapeBytesInplace(input []byte) ([]byte, error) {
 	}
 
 	if pendingEscapedSymbol || pendingUnicodeBytes > 0 {
-		return nil, fmt.Errorf(
-			"incomplete escape sequence %s",
-			string(input[writeIter:readIter]),
-		)
+		return nil, fmt.Errorf("incomplete escape sequence %s", string(input[writeIter:]))
 	}
 
 	return input[:writeIter], nil
