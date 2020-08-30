@@ -70,8 +70,6 @@ func unescapeBytesInplace(input []byte) ([]byte, error) {
 		readIter  int
 	)
 
-	unescapedBuf := make([]byte, 0, utf8.UTFMax)
-
 	for ; readIter < len(input); readIter++ {
 		c := input[readIter]
 
@@ -107,68 +105,56 @@ func unescapeBytesInplace(input []byte) ([]byte, error) {
 				pendingSecondUTF16SeqPoint = false
 			}
 
-			n := utf8.EncodeRune(unescapedBuf[:cap(unescapedBuf)], outRune)
-			unescapedBuf = unescapedBuf[:n]
+			n := utf8.EncodeRune(input[writeIter:], outRune)
+			writeIter += n
 		case pendingEscapedSymbol:
 			pendingEscapedSymbol = false
 
-			switch c {
-			case 'u', 'U':
+			if c == 'u' || c == 'U' {
 				pendingUnicodeBytes = utf16SequenceLength
 				continue
+			}
+
+			if pendingSecondUTF16SeqPoint {
+				return nil, fmt.Errorf("missing second sequence point for %x", firstUTF16SeqPoint)
+			}
+
+			var outRune byte
+
+			switch c {
 			case 'n':
-				unescapedBuf = append(unescapedBuf, '\n')
+				outRune = '\n'
 			case 'r':
-				unescapedBuf = append(unescapedBuf, '\r')
+				outRune = '\r'
 			case 't':
-				unescapedBuf = append(unescapedBuf, '\t')
+				outRune = '\t'
 			case 'b':
-				unescapedBuf = append(unescapedBuf, '\b')
+				outRune = '\b'
 			case 'f':
-				unescapedBuf = append(unescapedBuf, '\f')
+				outRune = '\f'
 			case '\\':
-				unescapedBuf = append(unescapedBuf, '\\')
+				outRune = '\\'
 			case '/':
-				unescapedBuf = append(unescapedBuf, '/')
+				outRune = '/'
 			case '"':
-				unescapedBuf = append(unescapedBuf, '"')
+				outRune = '"'
 			default:
 				return nil, fmt.Errorf("invalid escape sequence \\%c", c)
 			}
+
+			input[writeIter] = outRune
+			writeIter++
 		case c == '\\':
 			pendingEscapedSymbol = true
 			continue
 		default:
-			unescapedBuf = append(unescapedBuf, c)
+			input[writeIter] = c
+			writeIter++
 		}
-
-		if pendingSecondUTF16SeqPoint {
-			return nil, fmt.Errorf(
-				"missing second sequence point for %s",
-				string(input[writeIter:readIter]),
-			)
-		}
-
-		if pendingEscapedSymbol || pendingUnicodeBytes > 0 {
-			return nil, fmt.Errorf(
-				"incomplete escape sequence %s",
-				string(input[writeIter:readIter]),
-			)
-		}
-
-		for i := 0; i < len(unescapedBuf); i++ {
-			input[writeIter+i] = unescapedBuf[i]
-		}
-
-		writeIter += len(unescapedBuf)
-		unescapedBuf = unescapedBuf[:0]
 	}
 
 	if pendingSecondUTF16SeqPoint {
-		return nil, fmt.Errorf(
-			"missing second sequence point for %s",
-			string(input[writeIter:readIter]),
-		)
+		return nil, fmt.Errorf("missing second sequence point for %x", firstUTF16SeqPoint)
 	}
 
 	if pendingEscapedSymbol || pendingUnicodeBytes > 0 {
