@@ -10,8 +10,8 @@ test:
 	go test .
 
 bench:
-	# go test -bench=. -benchmem -memprofile=out.mem -cpuprofile=out.cpu
-	go test -bench=. -benchmem
+	go test -bench=. -benchmem -memprofile=out.mem -cpuprofile=out.cpu
+	# go test -bench=. -benchmem
 
 clean:
 	rm -rf ./bin

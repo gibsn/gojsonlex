@@ -157,7 +157,11 @@ func unescapeBytesInplace(input []byte) ([]byte, error) {
 			)
 		}
 
-		copy(input[writeIter:], unescapedBuf)
+		for i := 0; i < len(unescapedBuf); i++ {
+			input[writeIter+i] = unescapedBuf[i]
+		}
+
+		// copy(input[writeIter:], unescapedBuf)
 
 		writeIter += len(unescapedBuf)
 		unescapedBuf = unescapedBuf[:0]
