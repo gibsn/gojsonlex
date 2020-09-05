@@ -129,9 +129,9 @@ Please refer to the 'examples' directory for the examples of `gojsonlex` usage. 
 
 # Benchmarks
 ```
-BenchmarkEncodingJSON-8    	     644	   1605048 ns/op	  342976 B/op	   21906 allocs/op
-BenchmarkJSONLexer-8       	    1602	    737482 ns/op	   86400 B/op	    5500 allocs/op
-BenchmarkJSONLexerFast-8   	    1963	    571005 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEncodingJSON-8    	     576	   1973465 ns/op	  432581 B/op	   26706 allocs/op
+BenchmarkJSONLexer-8       	    1212	    959528 ns/op	   99200 B/op	    6300 allocs/op
+BenchmarkJSONLexerFast-8   	    1532	    771233 ns/op	       0 B/op	       0 allocs/op
 ```
 
 # Status

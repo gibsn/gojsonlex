@@ -85,7 +85,7 @@ func TestUnescapeBytesInplace(t *testing.T) {
 	}
 	for _, testcase := range testcases {
 		currIn := string(testcase.input) // making a copy
-		currOut, err := unescapeBytesInplace(testcase.input)
+		currOut, err := UnescapeBytesInplace(testcase.input)
 		if err != nil {
 			t.Errorf("testcase '%s': %v", currIn, err)
 			continue
@@ -123,7 +123,7 @@ func TestUnescapeBytesInplaceFails(t *testing.T) {
 	for _, testcase := range testcases {
 		currIn := string(testcase.input) // making a copy
 
-		_, err := unescapeBytesInplace(testcase.input)
+		_, err := UnescapeBytesInplace(testcase.input)
 		if err == nil {
 			t.Errorf("testcase '%s': must have failed", currIn)
 		}

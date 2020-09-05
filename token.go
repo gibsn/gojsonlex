@@ -50,113 +50,156 @@ func unsafeStringFromBytes(arr []byte) string {
 	return *(*string)(unsafe.Pointer(str))
 }
 
-// TODO comment
-func unescapeBytesInplace(input []byte) ([]byte, error) {
+type bytesUnescaper struct {
+	writeIter int
+	readIter  int
+	input     []byte
+
 	// state modificators
-	var (
-		pendingEscapedSymbol bool
-		pendingUnicodeBytes  byte
-	)
+	pendingEscapedSymbol bool
+	pendingUnicodeBytes  byte
 
 	// since in UTF-16 rune may be encoded by either 1 or 2 words we
 	// may have to remember the previous word
-	var (
-		pendingSecondUTF16SeqPoint bool
-		firstUTF16SeqPoint         rune
-	)
+	pendingSecondUTF16SeqPoint bool
+	firstUTF16SeqPoint         rune
+}
 
-	var writeIter int
+// UnescapeBytesInplace iterates over the given slice of byte unescaping all
+// escaped symbols inplace. Since the unescaped symbols take less space the shrinked
+// slice of bytes is returned
+func UnescapeBytesInplace(input []byte) ([]byte, error) {
+	u := bytesUnescaper{
+		input: input,
+	}
 
-	for readIter, c := range input {
+	return u.doUnescaping()
+}
+
+func (u *bytesUnescaper) processUnicodeByte(c byte) error {
+	u.pendingUnicodeBytes--
+	if u.pendingUnicodeBytes != 0 {
+		return nil
+	}
+
+	// processing the last byte of unicode sequence
+	utf16Sequence := u.input[u.readIter+1-utf16SequenceLength : u.readIter+1]
+
+	runeAsUint, err := HexBytesToUint(utf16Sequence)
+	if err != nil {
+		return fmt.Errorf("invalid unicode sequence \\u%s", utf16Sequence)
+	}
+
+	outRune := rune(runeAsUint)
+
+	if utf16.IsSurrogate(outRune) && !u.pendingSecondUTF16SeqPoint {
+		u.pendingSecondUTF16SeqPoint = true
+		u.firstUTF16SeqPoint = outRune
+		return nil
+	}
+
+	if u.pendingSecondUTF16SeqPoint { // then we got a second elem and can decode now
+		outRune = utf16.DecodeRune(u.firstUTF16SeqPoint, outRune)
+		if outRune == unicode.ReplacementChar {
+			return fmt.Errorf("invalid surrogate pair %x%x", u.firstUTF16SeqPoint, outRune)
+		}
+
+		u.pendingSecondUTF16SeqPoint = false
+	}
+
+	n := utf8.EncodeRune(u.input[u.writeIter:], outRune)
+	u.writeIter += n
+
+	return nil
+}
+
+func (u *bytesUnescaper) processSpecialByte(c byte) error {
+	u.pendingEscapedSymbol = false
+
+	if c == 'u' || c == 'U' {
+		u.pendingUnicodeBytes = utf16SequenceLength
+		return nil
+	}
+
+	if u.pendingSecondUTF16SeqPoint {
+		return fmt.Errorf("missing second sequence point for %x", u.firstUTF16SeqPoint)
+	}
+
+	var outRune byte
+
+	switch c {
+	case 'n':
+		outRune = '\n'
+	case 'r':
+		outRune = '\r'
+	case 't':
+		outRune = '\t'
+	case 'b':
+		outRune = '\b'
+	case 'f':
+		outRune = '\f'
+	case '\\':
+		outRune = '\\'
+	case '/':
+		outRune = '/'
+	case '"':
+		outRune = '"'
+	default:
+		return fmt.Errorf("invalid escape sequence \\%c", c)
+	}
+
+	u.input[u.writeIter] = outRune
+	u.writeIter++
+
+	return nil
+}
+
+func (u *bytesUnescaper) processBackSlashByte(c byte) {
+	u.pendingEscapedSymbol = true
+}
+
+func (u *bytesUnescaper) processRegularByte(c byte) {
+	u.input[u.writeIter] = c
+	u.writeIter++
+}
+
+func (u *bytesUnescaper) terminate() error {
+	if u.pendingSecondUTF16SeqPoint {
+		return fmt.Errorf("missing second sequence point for %x", u.firstUTF16SeqPoint)
+	}
+
+	if u.pendingEscapedSymbol || u.pendingUnicodeBytes > 0 {
+		return fmt.Errorf("incomplete escape sequence %s", string(u.input[u.writeIter:]))
+	}
+
+	return nil
+}
+
+func (u *bytesUnescaper) doUnescaping() (_ []byte, err error) {
+	for u.readIter = 0; u.readIter < len(u.input); u.readIter++ {
+		currByte := u.input[u.readIter]
+
 		switch {
-		case pendingUnicodeBytes > 0:
-			pendingUnicodeBytes--
-			if pendingUnicodeBytes != 0 {
-				continue
-			}
-
-			// processing the last byte of unicode sequence
-			utf16Sequence := input[readIter+1-utf16SequenceLength : readIter+1]
-
-			runeAsUint, err := HexBytesToUint(utf16Sequence)
-			if err != nil {
-				return nil, fmt.Errorf("invalid unicode sequence \\u%s", utf16Sequence)
-			}
-
-			outRune := rune(runeAsUint)
-
-			if utf16.IsSurrogate(outRune) && !pendingSecondUTF16SeqPoint {
-				pendingSecondUTF16SeqPoint = true
-				firstUTF16SeqPoint = outRune
-				continue
-			}
-
-			if pendingSecondUTF16SeqPoint { // then we got a second elem and can decode now
-				outRune = utf16.DecodeRune(firstUTF16SeqPoint, outRune)
-				if outRune == unicode.ReplacementChar {
-					return nil, fmt.Errorf("invalid surrogate pair %x%x", firstUTF16SeqPoint, outRune)
-				}
-
-				pendingSecondUTF16SeqPoint = false
-			}
-
-			n := utf8.EncodeRune(input[writeIter:], outRune)
-			writeIter += n
-		case pendingEscapedSymbol:
-			pendingEscapedSymbol = false
-
-			if c == 'u' || c == 'U' {
-				pendingUnicodeBytes = utf16SequenceLength
-				continue
-			}
-
-			if pendingSecondUTF16SeqPoint {
-				return nil, fmt.Errorf("missing second sequence point for %x", firstUTF16SeqPoint)
-			}
-
-			var outRune byte
-
-			switch c {
-			case 'n':
-				outRune = '\n'
-			case 'r':
-				outRune = '\r'
-			case 't':
-				outRune = '\t'
-			case 'b':
-				outRune = '\b'
-			case 'f':
-				outRune = '\f'
-			case '\\':
-				outRune = '\\'
-			case '/':
-				outRune = '/'
-			case '"':
-				outRune = '"'
-			default:
-				return nil, fmt.Errorf("invalid escape sequence \\%c", c)
-			}
-
-			input[writeIter] = outRune
-			writeIter++
-		case c == '\\':
-			pendingEscapedSymbol = true
-			continue
+		case u.pendingUnicodeBytes > 0:
+			err = u.processUnicodeByte(currByte)
+		case u.pendingEscapedSymbol:
+			err = u.processSpecialByte(currByte)
+		case currByte == '\\':
+			u.processBackSlashByte(currByte)
 		default:
-			input[writeIter] = c
-			writeIter++
+			u.processRegularByte(currByte)
+		}
+
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	if pendingSecondUTF16SeqPoint {
-		return nil, fmt.Errorf("missing second sequence point for %x", firstUTF16SeqPoint)
+	if err = u.terminate(); err != nil {
+		return nil, err
 	}
 
-	if pendingEscapedSymbol || pendingUnicodeBytes > 0 {
-		return nil, fmt.Errorf("incomplete escape sequence %s", string(input[writeIter:]))
-	}
-
-	return input[:writeIter], nil
+	return u.input[:u.writeIter], nil
 }
 
 // StringDeepCopy creates a copy of the given string with it's own underlying bytearray.

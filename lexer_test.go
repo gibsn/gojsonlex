@@ -344,18 +344,18 @@ const (
 		{ "name" : "args", "path" : [ "ip" ], "value" : "127.0.0.1" },
 		{ "name" : "args", "path" : [ "rid" ], "value" : "8c28ca1055" },
 		{ "name" : "args", "path" : [ "ua" ], "value" : "\"Go-http-client/1.1\"" },
-		{ "desc": "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 💩 \u043f\u043e\u0447\u0442\u044b"}
+		{ "desc": "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \\UD83D\\UDCA9 \u043f\u043e\u0447\u0442\u044b"}
 	  ]
 	}`
 )
 
-func generateBenchmarkInput(w io.Writer, numObjects int) {
+func generateBenchmarkInput(b *bytes.Buffer, numObjects int) {
 	for i := 0; i < numObjects; i++ {
 		if i > 0 {
-			w.Write([]byte(","))
+			b.WriteRune(',')
 		}
 
-		w.Write([]byte(jsonSample))
+		b.WriteString(jsonSample)
 	}
 }
 
@@ -408,12 +408,16 @@ func BenchmarkJSONLexer(b *testing.B) {
 func BenchmarkJSONLexerFast(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		input := bytes.NewBuffer(nil)
-		generateBenchmarkInput(input, 100)
-		l, err := NewJSONLexer(input)
+
+		input := bytes.Buffer{}
+		generateBenchmarkInput(&input, 100)
+
+		l, err := NewJSONLexer(&input)
 		if err != nil {
 			b.Errorf("could not create JSONLexer: %v", err)
 		}
+
+		l.SetBufSize(1024)
 
 		b.StartTimer()
 
