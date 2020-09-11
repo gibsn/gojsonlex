@@ -30,58 +30,22 @@ type unescapeBytesInplaceTestCase struct {
 
 func TestUnescapeBytesInplace(t *testing.T) {
 	testcases := []unescapeBytesInplaceTestCase{
+		{[]byte(""), []byte("")},
+		{[]byte("a"), []byte("a")},
+		{[]byte("hello\\nworld"), []byte("hello\nworld")},
+		{[]byte("hello\\rworld"), []byte("hello\rworld")},
+		{[]byte("hello\\tworld"), []byte("hello\tworld")},
+		{[]byte("hello\\bworld"), []byte("hello\bworld")},
+		{[]byte("hello\\fworld"), []byte("hello\fworld")},
+		{[]byte("hello\\\\world"), []byte("hello\\world")},
+		{[]byte("hello\\/world"), []byte("hello/world")},
+		{[]byte("hello\\\"world"), []byte("hello\"world")},
+		{[]byte("\\\"hello world\\\""), []byte("\"hello world\"")},
 		{
-			input:  []byte(""),
-			output: []byte(""),
+			[]byte("hello \\u043f\\u0440\\u0438\\u0432\\u0435\\u0442\\u0020\\u043c\\u0438\\u0440 world"),
+			[]byte("hello привет мир world"),
 		},
-		{
-			input:  []byte("a"),
-			output: []byte("a"),
-		},
-		{
-			input:  []byte("hello\\nworld"),
-			output: []byte("hello\nworld"),
-		},
-		{
-			input:  []byte("hello\\rworld"),
-			output: []byte("hello\rworld"),
-		},
-		{
-			input:  []byte("hello\\tworld"),
-			output: []byte("hello\tworld"),
-		},
-		{
-			input:  []byte("hello\\bworld"),
-			output: []byte("hello\bworld"),
-		},
-		{
-			input:  []byte("hello\\fworld"),
-			output: []byte("hello\fworld"),
-		},
-		{
-			input:  []byte("hello\\\\world"),
-			output: []byte("hello\\world"),
-		},
-		{
-			input:  []byte("hello\\/world"),
-			output: []byte("hello/world"),
-		},
-		{
-			input:  []byte("hello\\\"world"),
-			output: []byte("hello\"world"),
-		},
-		{
-			input:  []byte("\\\"hello world\\\""),
-			output: []byte("\"hello world\""),
-		},
-		{
-			input:  []byte("hello \\u043f\\u0440\\u0438\\u0432\\u0435\\u0442\\u0020\\u043c\\u0438\\u0440 world"),
-			output: []byte("hello привет мир world"),
-		},
-		{
-			input:  []byte("hello \\UD83D\\UDCA9 world"),
-			output: []byte("hello 💩 world"),
-		},
+		{[]byte("hello \\UD83D\\UDCA9 world"), []byte("hello 💩 world")},
 	}
 	for _, testcase := range testcases {
 		currIn := string(testcase.input) // making a copy
@@ -100,25 +64,15 @@ func TestUnescapeBytesInplace(t *testing.T) {
 
 func TestUnescapeBytesInplaceFails(t *testing.T) {
 	testcases := []unescapeBytesInplaceTestCase{
-		{
-			input: []byte("\\"),
-		},
+		{input: []byte("\\")},
 		// unknown escape sequnce
-		{
-			input: []byte("\\a"),
-		},
+		{input: []byte("\\a")},
 		// not enough symbols
-		{
-			input: []byte("\\u043"),
-		},
+		{input: []byte("\\u043")},
 		// wrong utf16 surrogate pair
-		{
-			input: []byte("hello \\ud83d\\ufca9 world"),
-		},
+		{input: []byte("hello \\ud83d\\ufca9 world")},
 		// missing second elem in a utf16 surrogate pair
-		{
-			input: []byte("hello \\ud83d world"),
-		},
+		{input: []byte("hello \\ud83d world")},
 	}
 	for _, testcase := range testcases {
 		currIn := string(testcase.input) // making a copy
@@ -178,6 +132,34 @@ func TestHexBytesToUintFails(t *testing.T) {
 		_, err := HexBytesToUint(testcase.input)
 		if err == nil {
 			t.Errorf("testcase '%s': must have failed", testcase.input)
+		}
+	}
+}
+
+type canAppearInNumberTestCase struct {
+	input  rune
+	output bool
+}
+
+func TestCanAppearInNumber(t *testing.T) {
+	testcases := []canAppearInNumberTestCase{
+		{'0', true},
+		{'9', true},
+		{'-', true},
+		{'.', true},
+		{'+', true},
+		{'e', true},
+		{'E', true},
+		{'е', false}, // russian 'е'
+		{'*', false},
+	}
+
+	for _, testcase := range testcases {
+		currOut := CanAppearInNumber(testcase.input)
+
+		if testcase.output != currOut {
+			t.Errorf("testcase '%c': got '%t', expected '%t'",
+				testcase.input, currOut, testcase.output)
 		}
 	}
 }
