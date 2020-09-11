@@ -241,12 +241,15 @@ func (l *JSONLexer) feed(c byte) error {
 	return nil
 }
 
-func (l *JSONLexer) currTokenAsUnsafeString() string {
+func (l *JSONLexer) currTokenAsUnsafeString() (string, error) {
 	// skipping "
 	var subStr = l.buf[l.currTokenStart+1 : l.currTokenEnd]
-	subStr = unescapeBytesInplace(subStr)
+	subStr, err := UnescapeBytesInplace(subStr)
+	if err != nil {
+		return "", err
+	}
 
-	return unsafeStringFromBytes(subStr)
+	return unsafeStringFromBytes(subStr), nil
 }
 
 func (l *JSONLexer) currTokenAsNumber() (float64, error) {
@@ -277,7 +280,8 @@ func (l *JSONLexer) currToken() (TokenGeneric, error) {
 	case LexerTokenTypeDelim:
 		return newTokenGenericFromDelim(l.buf[l.currTokenStart]), nil
 	case LexerTokenTypeString:
-		return newTokenGenericFromString(l.currTokenAsUnsafeString()), nil
+		s, err := l.currTokenAsUnsafeString()
+		return newTokenGenericFromString(s), err
 	case LexerTokenTypeNumber:
 		n, err := l.currTokenAsNumber()
 		return newTokenGenericFromNumber(n), err
@@ -300,10 +304,12 @@ func (l *JSONLexer) fetchNewData() error {
 		// checking if buf must be extended
 		currTokenBytesParsed := l.currPos - l.currTokenStart
 		if currTokenBytesParsed >= l.currTokenStart {
+			newSize := 2 * len(l.buf)
+			dstBuf = make([]byte, newSize)
+
 			if l.debug {
-				log.Printf("debug: gojsonlex: growing buffer %d -> %d", len(l.buf), 2*len(l.buf))
+				log.Printf("debug: gojsonlex: growing buffer %d -> %d", len(l.buf), newSize)
 			}
-			dstBuf = make([]byte, 2*len(l.buf))
 		}
 
 		// copying the part that has already been parsed

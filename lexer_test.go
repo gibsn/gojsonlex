@@ -21,6 +21,7 @@ type jsonLexerTestCase struct {
 
 func TestJSONLexer(t *testing.T) {
 	testcases := []jsonLexerTestCase{
+		// tests for strings
 		{
 			input: `{"hello":"world"}`,
 			output: []jsonLexerOutputToken{
@@ -31,23 +32,6 @@ func TestJSONLexer(t *testing.T) {
 				{
 					"world",
 					LexerTokenTypeString,
-				},
-			},
-		},
-		{
-			input: `{"hello":{"0": 10}}`,
-			output: []jsonLexerOutputToken{
-				{
-					"hello",
-					LexerTokenTypeString,
-				},
-				{
-					"0",
-					LexerTokenTypeString,
-				},
-				{
-					float64(10),
-					LexerTokenTypeNumber,
 				},
 			},
 		},
@@ -81,6 +65,58 @@ func TestJSONLexer(t *testing.T) {
 				},
 			},
 		},
+		// tests for numbers
+		{
+			input: `{"hello":{"0": 10, "1": 11.0}}`,
+			output: []jsonLexerOutputToken{
+				{
+					"hello",
+					LexerTokenTypeString,
+				},
+				{
+					"0",
+					LexerTokenTypeString,
+				},
+				{
+					float64(10),
+					LexerTokenTypeNumber,
+				},
+				{
+					"1",
+					LexerTokenTypeString,
+				},
+				{
+					float64(11),
+					LexerTokenTypeNumber,
+				},
+			},
+		},
+		// {
+		// 	input: `{"hello":{"0": -10, "1": -11.0}}`,
+		// 	output: []jsonLexerOutputToken{
+		// 		{
+		// 			"hello",
+		// 			LexerTokenTypeString,
+		// 		},
+		// 		{
+		// 			"0",
+		// 			LexerTokenTypeString,
+		// 		},
+		// 		{
+		// 			float64(-10),
+		// 			LexerTokenTypeNumber,
+		// 		},
+		// 		{
+		// 			"1",
+		// 			LexerTokenTypeString,
+		// 		},
+		// 		{
+		// 			float64(-11),
+		// 			LexerTokenTypeNumber,
+		// 		},
+		// 	},
+		// },
+		// tests for special symbols
 		{
 			input: `{"ua": "\"\"Some\nWeird\tUA\"\""}`,
 			output: []jsonLexerOutputToken{
@@ -94,19 +130,21 @@ func TestJSONLexer(t *testing.T) {
 				},
 			},
 		},
+		// tests for Unicode
 		{
-			input: `{"ua": "SomeInternationalUA\U123A"}`,
+			input: `{"desc": "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u043f\u043e\u0447\u0442\u044b"}`,
 			output: []jsonLexerOutputToken{
 				{
-					"ua",
+					"desc",
 					LexerTokenTypeString,
 				},
 				{
-					"SomeInternationalUA\\U123A",
+					"Проверка почты",
 					LexerTokenTypeString,
 				},
 			},
 		},
+		// tests for Null
 		{
 			input: `{"ua": Null}`,
 			output: []jsonLexerOutputToken{
@@ -133,6 +171,7 @@ func TestJSONLexer(t *testing.T) {
 				},
 			},
 		},
+		// tests for Bool
 		{
 			input: `{"isValid": true}`,
 			output: []jsonLexerOutputToken{
@@ -288,24 +327,12 @@ func TestJSONLexer(t *testing.T) {
 
 func TestJSONLexerFails(t *testing.T) {
 	testcases := []jsonLexerTestCase{
-		{
-			input: `{"hello":"\u123r"}`,
-		},
-		{
-			input: `{"hello":"\a"}`,
-		},
-		{
-			input: `{"hello`,
-		},
-		{
-			input: `{"hello": Nuii}`,
-		},
-		{
-			input: `{"isValid": tru}`,
-		},
-		{
-			input: `{"isValid": folse}`,
-		},
+		{`{"hello":"\u123r"}`, nil, false},
+		{`{"hello":"\a"}`, nil, false},
+		{`{"hello`, nil, false},
+		{`{"hello": Nuii}`, nil, false},
+		{`{"isValid": tru}`, nil, false},
+		{`{"isValid": folse}`, nil, false},
 		{`{"delta": 3.1.4}`, nil, false},
 		{`{"temperature": 5-2}`, nil, false},
 		{`{"distance": 1.57+10}`, nil, false},
@@ -361,18 +388,19 @@ const (
 		{ "name" : "args", "path" : [ "h" ], "value" : "internal-api.devmail.ru" },
 		{ "name" : "args", "path" : [ "ip" ], "value" : "127.0.0.1" },
 		{ "name" : "args", "path" : [ "rid" ], "value" : "8c28ca1055" },
-		{ "name" : "args", "path" : [ "ua" ], "value" : "\"Go-http-client/1.1\"" }
+		{ "name" : "args", "path" : [ "ua" ], "value" : "\"Go-http-client/1.1\"" },
+		{ "desc": "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \\UD83D\\UDCA9 \u043f\u043e\u0447\u0442\u044b"}
 	  ]
 	}`
 )
 
-func generateBenchmarkInput(w io.Writer, numObjects int) {
+func generateBenchmarkInput(b *bytes.Buffer, numObjects int) {
 	for i := 0; i < numObjects; i++ {
 		if i > 0 {
-			w.Write([]byte(","))
+			b.WriteRune(',')
 		}
 
-		w.Write([]byte(jsonSample))
+		b.WriteString(jsonSample)
 	}
 }
 
@@ -425,12 +453,16 @@ func BenchmarkJSONLexer(b *testing.B) {
 func BenchmarkJSONLexerFast(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		input := bytes.NewBuffer(nil)
-		generateBenchmarkInput(input, 100)
-		l, err := NewJSONLexer(input)
+
+		input := bytes.Buffer{}
+		generateBenchmarkInput(&input, 100)
+
+		l, err := NewJSONLexer(&input)
 		if err != nil {
 			b.Errorf("could not create JSONLexer: %v", err)
 		}
+
+		l.SetBufSize(1024)
 
 		b.StartTimer()
 
